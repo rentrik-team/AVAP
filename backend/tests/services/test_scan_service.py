@@ -16,8 +16,11 @@ class MockScannerEngine(IScannerEngine):
     def __init__(self):
         self.dispatched = False
 
-    def dispatch_scan(self, scan_id: uuid.UUID, target: str, scan_profile: str) -> None:
+    def dispatch_scan(self, scan_id: uuid.UUID, target: str, scan_profile: str, scanner_type=None):
         self.dispatched = True
+        from app.core.enums import ExecutionStatus
+        from app.scanners.scan_artifact import ScanArtifact
+        return ScanArtifact(scan_id=scan_id, execution_status=ExecutionStatus.SUCCESS)
 
 
 @pytest.fixture

@@ -53,6 +53,7 @@ class Settings(BaseSettings):
 
     # Reporting
     report_output_directory: str = "./generated_reports"
+    scanner_output_directory: str = "./scan_output"
 
     # Logging
     log_level: str = "INFO"
@@ -102,6 +103,11 @@ class Settings(BaseSettings):
     def report_output_path(self) -> Path:
         """Return the report output directory as a Path object."""
         return Path(self.report_output_directory)
+
+    @property
+    def scanner_output_path(self) -> Path:
+        """Return the scanner output directory as a Path object."""
+        return Path(self.scanner_output_directory)
 
 
 def get_settings() -> Settings:

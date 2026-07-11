@@ -62,3 +62,47 @@ class InternalException(AppException):
             status_code=500,
             error_code="INTERNAL_SERVER_ERROR",
         )
+
+
+class ConflictException(AppException):
+    """Raised when a request conflicts with current resource state."""
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            status_code=409,
+            error_code="CONFLICT",
+            details=details,
+        )
+
+
+class ScannerExecutionException(AppException):
+    """Raised when a scanner execution fails."""
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            status_code=502,
+            error_code="SCANNER_EXECUTION_ERROR",
+            details=details,
+        )
+
+
+class ScannerTimeoutException(AppException):
+    """Raised when a scanner execution exceeds configured timeout."""
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            status_code=504,
+            error_code="SCANNER_TIMEOUT",
+            details=details,
+        )
+
+
+class ParserException(AppException):
+    """Raised when a scan artifact parsing or validation fails."""
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            status_code=422,
+            error_code="PARSER_ERROR",
+            details=details,
+        )

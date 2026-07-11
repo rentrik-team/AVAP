@@ -15,16 +15,18 @@ from app.schemas.scan import (
 )
 from app.services.scan_service import ScanService
 
+from app.scanners.scanner_manager import ScannerManager
+
 router = APIRouter()
 
-# For now, scanner engine is None until Module 03 is built.
+
 def get_scan_service(db: Session = Depends(get_db)) -> ScanService:
     scan_repo = ScanRepository(db)
     target_repo = TargetRepository(db)
     return ScanService(
         scan_repository=scan_repo,
         target_repository=target_repo,
-        scanner_engine=None  # To be injected later
+        scanner_engine=ScannerManager()
     )
 
 

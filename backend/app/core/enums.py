@@ -22,3 +22,27 @@ class ScanStatus(str, enum.Enum):
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+
+
+class ScannerType(str, enum.Enum):
+    """Supported scanner implementations."""
+
+    NMAP = "NMAP"
+    OPENVAS = "OPENVAS"
+
+
+class ScanProfile(str, enum.Enum):
+    """Predefined scan profiles controlling scanner behavior."""
+
+    DISCOVERY = "DISCOVERY"
+    PORT_SCAN = "PORT_SCAN"
+    FULL = "FULL"
+
+
+class ExecutionStatus(str, enum.Enum):
+    """Outcome status of a scanner execution."""
+
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    TIMEOUT = "TIMEOUT"
+    ERROR = "ERROR"

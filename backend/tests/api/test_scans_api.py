@@ -1,6 +1,37 @@
+import uuid
 import pytest
 from fastapi.testclient import TestClient
 from app.core.enums import TargetType
+from app.api.routes.v1.scans import get_scan_service
+from app.services.scan_service import ScanService
+from app.repositories.scan_repository import ScanRepository
+from app.repositories.target_repository import TargetRepository
+from app.scanners.interfaces import IScannerEngine
+from app.scanners.scan_artifact import ScanArtifact
+from app.core.enums import ExecutionStatus
+from app.main import app
+
+
+class MockScannerEngine(IScannerEngine):
+    def dispatch_scan(self, scan_id: uuid.UUID, target: str, scan_profile: str, scanner_type=None):
+        return ScanArtifact(
+            scan_id=scan_id,
+            execution_status=ExecutionStatus.SUCCESS,
+            stdout="Mock output"
+        )
+
+
+@pytest.fixture(autouse=True)
+def override_scan_service(db_session):
+    def mock_get_scan_service():
+        return ScanService(
+            scan_repository=ScanRepository(db_session),
+            target_repository=TargetRepository(db_session),
+            scanner_engine=MockScannerEngine()
+        )
+    app.dependency_overrides[get_scan_service] = mock_get_scan_service
+    yield
+    app.dependency_overrides.pop(get_scan_service, None)
 
 
 @pytest.fixture
@@ -21,7 +52,7 @@ def test_create_scan(client: TestClient, setup_target):
     data = response.json()
     assert "scan_id" in data
     assert data["target_id"] == target_id
-    assert data["status"] == "PENDING"  # No engine configured in API dependency yet
+    assert data["status"] == "RUNNING"  # Now RUNNING since engine successfully dispatches
 
 
 def test_list_scans(client: TestClient, setup_target):
