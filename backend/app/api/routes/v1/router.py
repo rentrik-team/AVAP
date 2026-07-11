@@ -1,8 +1,10 @@
 from fastapi import APIRouter
 
-from app.api.routes.v1 import targets, scans
+from app.api.routes.v1 import targets, scans, assets, vulnerabilities
 
 api_router = APIRouter()
 
 api_router.include_router(targets.router, prefix="/targets", tags=["targets"])
 api_router.include_router(scans.router, prefix="/scans", tags=["scans"])
+api_router.include_router(assets.router, prefix="/assets", tags=["assets"])
+api_router.include_router(vulnerabilities.router, prefix="/vulnerabilities", tags=["vulnerabilities"])

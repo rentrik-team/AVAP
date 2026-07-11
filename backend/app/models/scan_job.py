@@ -22,7 +22,7 @@ class ScanJob(Base, TimestampMixin):
         UUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
     
-    target_id: Mapped[int] = mapped_column(
+    target_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("targets.id", ondelete="CASCADE"), nullable=False
     )
     

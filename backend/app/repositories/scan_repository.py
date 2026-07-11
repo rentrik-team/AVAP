@@ -48,7 +48,7 @@ class ScanRepository:
         self.session.delete(scan_job)
         self.session.commit()
 
-    def get_running_scans_for_target(self, target_id: int) -> Sequence[ScanJob]:
+    def get_running_scans_for_target(self, target_id: uuid.UUID) -> Sequence[ScanJob]:
         """Retrieve all running scans for a specific target."""
         stmt = select(ScanJob).where(
             ScanJob.target_id == target_id,

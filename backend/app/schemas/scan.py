@@ -8,7 +8,7 @@ from app.core.enums import ScanStatus
 
 class CreateScanRequest(BaseModel):
     """Request model for creating a scan job."""
-    target_id: int = Field(
+    target_id: uuid.UUID = Field(
         ...,
         description="The ID of the validated target to scan.",
     )
@@ -30,7 +30,7 @@ class ScanResponse(BaseModel):
         description="Unique identifier for the scan job.",
         validation_alias="id"
     )
-    target_id: int = Field(description="The ID of the associated target.")
+    target_id: uuid.UUID = Field(description="The ID of the associated target.")
     status: ScanStatus = Field(description="Current execution status of the scan.")
     scan_type: str = Field(description="The type of the scan.")
     created_at: datetime = Field(description="Timestamp when the scan job was requested.")

@@ -11,8 +11,7 @@ from app.core.config import get_settings
 from app.database.base import Base
 
 # Also need to import all models here so Alembic can see them
-from app.models.target import Target  # We'll create this next
-from app.models.scan_job import ScanJob
+from app.models import Target, ScanJob, Asset, NetworkService, Vulnerability, ScanFinding
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

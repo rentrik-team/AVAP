@@ -8,6 +8,9 @@ from app.api.dependencies.database import get_db
 from app.database.base import Base
 from app.main import app
 
+# Import all models so Base.metadata registers every table for create_all
+import app.models  # noqa: F401
+
 # SQLite database URL for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
 

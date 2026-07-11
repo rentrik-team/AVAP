@@ -54,7 +54,7 @@ def test_create_scan_success(scan_service, test_target):
 
 
 def test_create_scan_target_not_found(scan_service):
-    request = CreateScanRequest(target_id=9999, scan_profile="full")
+    request = CreateScanRequest(target_id=uuid.uuid4(), scan_profile="full")
     with pytest.raises(NotFoundException):
         scan_service.create_scan(request)
 
