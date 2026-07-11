@@ -13,3 +13,12 @@ class TargetType(str, enum.Enum):
     IPV4 = "IPV4"
     CIDR = "CIDR"
     HOSTNAME = "HOSTNAME"
+
+
+class ScanStatus(str, enum.Enum):
+    """Execution status of a scan job."""
+
+    PENDING = "PENDING"
+    RUNNING = "RUNNING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
