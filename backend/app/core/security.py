@@ -71,13 +71,13 @@ def is_valid_hostname(hostname: str) -> bool:
         if not _LABEL_REGEX.match(label):
             return False
 
-    # A valid hostname shouldn't look like an IP address
-    # We do a quick check here, though is_valid_ipv4 is more robust
-    try:
-        ipaddress.IPv4Address(hostname)
-        return False # It's an IP, not a hostname
-    except ipaddress.AddressValueError:
-        pass
+    # A multi-label value where every label is purely numeric (e.g.
+    # "999.999.999.999" or "1.2.3.4.5") is always an attempted IP address,
+    # never a hostname — even when it has an invalid octet count or range.
+    # Such values must be rejected outright rather than falling through to
+    # hostname classification just because IPv4 parsing failed on them.
+    if len(labels) > 1 and all(label.isdigit() for label in labels):
+        return False
 
     return True
 

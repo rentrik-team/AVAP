@@ -36,7 +36,12 @@ def scan_job(db_session, target):
         started_at=datetime.now(timezone.utc)
     )
     db_session.add(job)
-    db_session.flush()
+    # Commit (not just flush): in production, ScanRepository.create() always
+    # commits a scan job before InventoryService ever processes it, so a scan
+    # job is durably persisted by the time processing begins. Only flushing
+    # here would make it disappear on InventoryService's own rollback-on-
+    # failure path, which does not reflect real behavior.
+    db_session.commit()
     return job
 
 
@@ -309,15 +314,15 @@ def test_rollback_on_failure(db_session, inventory_service, scan_job):
 
 def test_scan_status_failed_after_error(db_session, inventory_service, scan_job):
     """Scan transitions to FAILED after a processing error."""
+    scan_id = scan_job.id
     host = ParsedHost(ipv4="10.0.7.1")
-    pkg = _make_package(scan_job.id, [host])
+    pkg = _make_package(scan_id, [host])
 
     with patch.object(inventory_service, "_upsert_asset", side_effect=RuntimeError("db error")):
         with pytest.raises(RuntimeError, match="db error"):
             inventory_service.process_assessment_package(pkg)
 
-    db_session.expire_all()
-    updated = db_session.execute(select(ScanJob).where(ScanJob.id == scan_job.id)).scalar_one()
+    updated = db_session.execute(select(ScanJob).where(ScanJob.id == scan_id)).scalar_one()
     assert updated.status == ScanStatus.FAILED
     assert updated.failure_reason is not None
 

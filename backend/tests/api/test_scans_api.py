@@ -1,7 +1,7 @@
 import uuid
 import pytest
 from fastapi.testclient import TestClient
-from app.core.enums import TargetType
+from app.core.enums import ScanStatus
 from app.api.routes.v1.scans import get_scan_service
 from app.services.scan_service import ScanService
 from app.repositories.scan_repository import ScanRepository
@@ -9,6 +9,7 @@ from app.repositories.target_repository import TargetRepository
 from app.scanners.interfaces import IScannerEngine
 from app.scanners.scan_artifact import ScanArtifact
 from app.core.enums import ExecutionStatus
+from app.models.scan_job import ScanJob
 from app.main import app
 
 
@@ -38,7 +39,9 @@ def override_scan_service(db_session):
 def setup_target(client: TestClient):
     response = client.post("/api/v1/targets/", json={"target": "10.0.0.100"})
     assert response.status_code == 201
-    return response.json()
+    # Targets API responses use the standard SuccessResponse envelope
+    # ({"success": ..., "data": {...}}); the target payload is under "data".
+    return response.json()["data"]
 
 
 def test_create_scan(client: TestClient, setup_target):
@@ -96,16 +99,40 @@ def test_get_scan_status(client: TestClient, setup_target):
     assert "status" in data
 
 
-def test_delete_scan(client: TestClient, setup_target):
+def test_delete_scan_conflict_while_running(client: TestClient, setup_target):
+    """A scan dispatched to the Scanner Engine transitions to RUNNING and
+    must not be deletable until it reaches a terminal state. This matches
+    ScanService.delete_scan's business rule, not scan deletion generally.
+    """
     target_id = setup_target["id"]
     create_response = client.post(
-        "/api/v1/scans/", 
+        "/api/v1/scans/",
         json={"target_id": target_id, "scan_profile": "full"}
     )
     scan_id = create_response.json()["scan_id"]
-    
+    assert create_response.json()["status"] == "RUNNING"
+
+    response = client.delete(f"/api/v1/scans/{scan_id}")
+    assert response.status_code == 409
+
+
+def test_delete_scan_succeeds_when_not_running(
+    client: TestClient, db_session, setup_target
+):
+    """A scan in a terminal state (as set by Module 05 processing) can be deleted."""
+    target_id = setup_target["id"]
+    create_response = client.post(
+        "/api/v1/scans/",
+        json={"target_id": target_id, "scan_profile": "full"}
+    )
+    scan_id = create_response.json()["scan_id"]
+
+    scan_job = db_session.get(ScanJob, uuid.UUID(scan_id))
+    scan_job.status = ScanStatus.COMPLETED
+    db_session.commit()
+
     response = client.delete(f"/api/v1/scans/{scan_id}")
     assert response.status_code == 204
-    
+
     get_response = client.get(f"/api/v1/scans/{scan_id}")
     assert get_response.status_code == 404

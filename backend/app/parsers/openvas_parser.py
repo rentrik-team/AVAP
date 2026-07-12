@@ -74,8 +74,12 @@ class OpenVASParser(BaseParser):
         )
 
         try:
-            parser = ET.XMLParser(resolve_entities=False)
-            tree = ET.parse(output_path, parser=parser)
+            # Secure XML parsing: xml.etree.ElementTree's bundled expat parser
+            # never resolves external entities (XXE-safe by default) and, on all
+            # currently supported CPython versions, rejects entity-expansion
+            # ("billion laughs") attacks via its built-in amplification limit.
+            # No custom parser configuration or third-party library is required.
+            tree = ET.parse(output_path)
             root = tree.getroot()
         except ET.ParseError as e:
             logger.error(

@@ -56,11 +56,15 @@ def test_parser_manager_missing_file():
 
 
 def test_parser_manager_coordination():
-    # Mock Factory, Parser, and Package
+    # Mock Factory and Parser; use a real AssessmentPackage since it is a
+    # Pydantic model whose fields are not visible to MagicMock(spec=...)
+    # introspection (dir() does not list pydantic v2 model fields).
     mock_factory = MagicMock()
     mock_parser = MagicMock()
-    mock_package = MagicMock(spec=AssessmentPackage)
-    
+    mock_package = AssessmentPackage(
+        scan_id=uuid.uuid4(), scanner_type=ScannerType.NMAP
+    )
+
     mock_factory.get_parser.return_value = mock_parser
     mock_parser.parse.return_value = mock_package
     

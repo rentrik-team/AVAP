@@ -1,6 +1,6 @@
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -35,12 +35,30 @@ def db_engine():
 
 @pytest.fixture(scope="function")
 def db_session(db_engine):
-    """Provide a transactional scope around a series of operations."""
+    """Provide a transactional scope around a series of operations.
+
+    Uses a SAVEPOINT (nested transaction) so that application code calling
+    session.commit() (as production services do) commits only the savepoint,
+    never the outer transaction. Without this, a service's session.commit()
+    would end the outer transaction directly on this shared connection, and
+    any later session.rollback() (e.g. an error-handling rollback further
+    into the same test) would discard all prior "committed" data instead of
+    only the failed operation's own uncommitted work. The final teardown
+    rollback still discards everything, keeping tests isolated.
+    """
     connection = db_engine.connect()
     # Begin a non-ORM transaction
     transaction = connection.begin()
     # Bind an individual Session to the connection
     session = TestingSessionLocal(bind=connection)
+
+    nested = connection.begin_nested()
+
+    @event.listens_for(session, "after_transaction_end")
+    def _restart_savepoint(session, transaction):
+        nonlocal nested
+        if not nested.is_active:
+            nested = connection.begin_nested()
 
     yield session
 
