@@ -120,7 +120,7 @@ The platform currently consists of the following logical entities.
 | ScanJob | Represents a scan execution |
 | Asset | Stores discovered assets |
 | Vulnerability | Stores normalized findings |
-| RiskAssessment | Stores calculated risk |
+| RiskAssessment | Stores calculated risk (explicit scope: vulnerability, asset, scan, or assessment) |
 | AIRecommendation | Stores AI-generated remediation |
 | Report | Stores generated reports |
 | AuditLog | Stores system events |

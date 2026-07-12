@@ -4,12 +4,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
+# Import all models so Base.metadata registers every table for create_all.
+# This must happen before `from app.main import app` below: `import app.models`
+# binds the top-level `app` package name in this module's namespace, which
+# would otherwise shadow the FastAPI `app` instance imported next.
+import app.models  # noqa: F401
 from app.api.dependencies.database import get_db
 from app.database.base import Base
 from app.main import app
-
-# Import all models so Base.metadata registers every table for create_all
-import app.models  # noqa: F401
 
 # SQLite database URL for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -39,9 +41,9 @@ def db_session(db_engine):
     transaction = connection.begin()
     # Bind an individual Session to the connection
     session = TestingSessionLocal(bind=connection)
-    
+
     yield session
-    
+
     # Rollback - everything that happened with the Session above
     # is rolled back, leaving the DB clean
     session.close()
@@ -52,12 +54,13 @@ def db_session(db_engine):
 @pytest.fixture(scope="function")
 def client(db_session):
     """Provide a FastAPI TestClient with the database dependency overridden."""
+
     def override_get_db():
         try:
             yield db_session
         finally:
-            pass # Transaction rollback handles cleanup
-            
+            pass  # Transaction rollback handles cleanup
+
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as c:
         yield c

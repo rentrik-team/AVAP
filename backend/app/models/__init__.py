@@ -4,6 +4,7 @@ from app.models.asset import Asset
 from app.models.service import NetworkService
 from app.models.vulnerability import Vulnerability
 from app.models.scan_finding import ScanFinding
+from app.models.risk_assessment import RiskAssessment
 
 __all__ = [
     "Target",
@@ -12,4 +13,5 @@ __all__ = [
     "NetworkService",
     "Vulnerability",
     "ScanFinding",
+    "RiskAssessment",
 ]

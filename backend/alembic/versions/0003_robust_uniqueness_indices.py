@@ -25,7 +25,8 @@ def upgrade() -> None:
         'vulnerabilities',
         ['name'],
         unique=True,
-        where=sa.text('cve IS NULL')
+        postgresql_where=sa.text('cve IS NULL'),
+        sqlite_where=sa.text('cve IS NULL'),
     )
 
     # 2. Add unique indexes for scan_findings table to handle nullable columns
@@ -34,29 +35,52 @@ def upgrade() -> None:
         'scan_findings',
         ['scan_id', 'asset_id', 'service_id'],
         unique=True,
-        where=sa.text('vulnerability_id IS NULL AND service_id IS NOT NULL')
+        postgresql_where=sa.text('vulnerability_id IS NULL AND service_id IS NOT NULL'),
+        sqlite_where=sa.text('vulnerability_id IS NULL AND service_id IS NOT NULL'),
     )
     op.create_index(
         'uq_scan_findings_null_service',
         'scan_findings',
         ['scan_id', 'asset_id', 'vulnerability_id'],
         unique=True,
-        where=sa.text('vulnerability_id IS NOT NULL AND service_id IS NULL')
+        postgresql_where=sa.text('vulnerability_id IS NOT NULL AND service_id IS NULL'),
+        sqlite_where=sa.text('vulnerability_id IS NOT NULL AND service_id IS NULL'),
     )
     op.create_index(
         'uq_scan_findings_both_null',
         'scan_findings',
         ['scan_id', 'asset_id'],
         unique=True,
-        where=sa.text('vulnerability_id IS NULL AND service_id IS NULL')
+        postgresql_where=sa.text('vulnerability_id IS NULL AND service_id IS NULL'),
+        sqlite_where=sa.text('vulnerability_id IS NULL AND service_id IS NULL'),
     )
 
 
 def downgrade() -> None:
     # Drop scan_findings partial indexes
-    op.drop_index('uq_scan_findings_both_null', table_name='scan_findings', where=sa.text('vulnerability_id IS NULL AND service_id IS NULL'))
-    op.drop_index('uq_scan_findings_null_service', table_name='scan_findings', where=sa.text('vulnerability_id IS NOT NULL AND service_id IS NULL'))
-    op.drop_index('uq_scan_findings_null_vuln', table_name='scan_findings', where=sa.text('vulnerability_id IS NULL AND service_id IS NOT NULL'))
+    op.drop_index(
+        'uq_scan_findings_both_null',
+        table_name='scan_findings',
+        postgresql_where=sa.text('vulnerability_id IS NULL AND service_id IS NULL'),
+        sqlite_where=sa.text('vulnerability_id IS NULL AND service_id IS NULL'),
+    )
+    op.drop_index(
+        'uq_scan_findings_null_service',
+        table_name='scan_findings',
+        postgresql_where=sa.text('vulnerability_id IS NOT NULL AND service_id IS NULL'),
+        sqlite_where=sa.text('vulnerability_id IS NOT NULL AND service_id IS NULL'),
+    )
+    op.drop_index(
+        'uq_scan_findings_null_vuln',
+        table_name='scan_findings',
+        postgresql_where=sa.text('vulnerability_id IS NULL AND service_id IS NOT NULL'),
+        sqlite_where=sa.text('vulnerability_id IS NULL AND service_id IS NOT NULL'),
+    )
 
     # Drop vulnerabilities partial index
-    op.drop_index('uq_vulnerabilities_name_cve_null', table_name='vulnerabilities', where=sa.text('cve IS NULL'))
+    op.drop_index(
+        'uq_vulnerabilities_name_cve_null',
+        table_name='vulnerabilities',
+        postgresql_where=sa.text('cve IS NULL'),
+        sqlite_where=sa.text('cve IS NULL'),
+    )

@@ -46,3 +46,22 @@ class ExecutionStatus(str, enum.Enum):
     FAILED = "FAILED"
     TIMEOUT = "TIMEOUT"
     ERROR = "ERROR"
+
+
+class RiskScope(str, enum.Enum):
+    """Explicit scope of a persisted risk assessment record."""
+
+    VULNERABILITY = "VULNERABILITY"
+    ASSET = "ASSET"
+    SCAN = "SCAN"
+    ASSESSMENT = "ASSESSMENT"
+
+
+class RiskLevel(str, enum.Enum):
+    """Standardized deterministic risk categorization."""
+
+    INFORMATIONAL = "INFORMATIONAL"
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
