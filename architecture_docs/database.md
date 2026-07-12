@@ -121,7 +121,7 @@ The platform currently consists of the following logical entities.
 | Asset | Stores discovered assets |
 | Vulnerability | Stores normalized findings |
 | RiskAssessment | Stores calculated risk (explicit scope: vulnerability, asset, scan, or assessment) |
-| AIRecommendation | Stores AI-generated remediation |
+| AIRecommendation | Stores AI-generated remediation, identified by (risk_assessment_id, provider, model, prompt_version) |
 | Report | Stores generated reports |
 | AuditLog | Stores system events |
 

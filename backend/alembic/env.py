@@ -1,8 +1,7 @@
 import logging
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
 
@@ -12,13 +11,14 @@ from app.database.base import Base
 
 # Also need to import all models here so Alembic can see them
 from app.models import (
-    Target,
-    ScanJob,
+    AIRecommendation,
     Asset,
     NetworkService,
-    Vulnerability,
-    ScanFinding,
     RiskAssessment,
+    ScanFinding,
+    ScanJob,
+    Target,
+    Vulnerability,
 )
 
 # this is the Alembic Config object, which provides

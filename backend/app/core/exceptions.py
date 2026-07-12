@@ -106,3 +106,64 @@ class ParserException(AppException):
             error_code="PARSER_ERROR",
             details=details,
         )
+
+
+class UnsupportedProviderException(AppException):
+    """Raised when the configured AI provider is not implemented."""
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            status_code=500,
+            error_code="UNSUPPORTED_AI_PROVIDER",
+            details=details,
+        )
+
+
+class AIProviderConfigurationException(AppException):
+    """Raised when a supported AI provider is missing required configuration."""
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            status_code=500,
+            error_code="AI_PROVIDER_CONFIGURATION_ERROR",
+            details=details,
+        )
+
+
+class AIProviderException(AppException):
+    """Raised when an AI provider request fails at the transport level
+    (network failure, timeout, non-success response, malformed or empty output).
+    """
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            status_code=502,
+            error_code="AI_PROVIDER_ERROR",
+            details=details,
+        )
+
+
+class InvalidAIResponseException(AppException):
+    """Raised when an AI provider's output does not satisfy AVAP's
+    structured remediation response contract.
+    """
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            status_code=502,
+            error_code="INVALID_AI_RESPONSE",
+            details=details,
+        )
+
+
+class InsufficientContextException(AppException):
+    """Raised when the available assessment context is not sufficient to
+    generate an AI remediation recommendation.
+    """
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            status_code=422,
+            error_code="INSUFFICIENT_CONTEXT",
+            details=details,
+        )

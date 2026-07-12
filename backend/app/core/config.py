@@ -44,9 +44,12 @@ class Settings(BaseSettings):
     openvas_password: str = "changeme"
 
     # AI Providers
+    ai_provider: str = "openrouter"
+    ai_request_timeout_seconds: int = 30
+    ai_max_tokens: int = 1024
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
-    openrouter_model: str = "openai/gpt-4o"
+    openrouter_model: str = "meta-llama/llama-3.1-8b-instruct:free"
     groq_api_key: str = ""
     gemini_api_key: str = ""
     huggingface_api_key: str = ""
@@ -70,6 +73,12 @@ class Settings(BaseSettings):
                 f"Invalid log level: {value}. Allowed: {', '.join(sorted(allowed))}"
             )
         return upper_value
+
+    @field_validator("ai_provider")
+    @classmethod
+    def normalize_ai_provider(cls, value: str) -> str:
+        """Normalize the configured AI provider name for case-insensitive matching."""
+        return value.strip().lower()
 
     @field_validator("environment")
     @classmethod
