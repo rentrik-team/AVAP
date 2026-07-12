@@ -162,3 +162,18 @@ class RiskRepository:
             RiskAssessment.scope == RiskScope.SCAN
         )
         return [tuple(row) for row in self.session.execute(stmt).all()]
+
+    def get_by_scan_and_scope(
+        self, scan_id: uuid.UUID, scope: RiskScope
+    ) -> Sequence[RiskAssessment]:
+        """Retrieve every risk assessment of a given scope within one scan.
+
+        Used by the Reporting Engine (Module 08) to assemble per-finding
+        (VULNERABILITY-scope) and per-asset (ASSET-scope) risk detail for a
+        single scan without introducing a new repository for this table.
+        """
+        stmt = select(RiskAssessment).where(
+            RiskAssessment.scan_id == scan_id,
+            RiskAssessment.scope == scope,
+        )
+        return self.session.execute(stmt).scalars().all()

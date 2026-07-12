@@ -122,7 +122,7 @@ The platform currently consists of the following logical entities.
 | Vulnerability | Stores normalized findings |
 | RiskAssessment | Stores calculated risk (explicit scope: vulnerability, asset, scan, or assessment) |
 | AIRecommendation | Stores AI-generated remediation, identified by (risk_assessment_id, provider, model, prompt_version) |
-| Report | Stores generated reports |
+| Report | Stores immutable, versioned report metadata for one scan per row; the PDF file is stored separately on disk |
 | AuditLog | Stores system events |
 
 Additional entities may be introduced as the platform evolves.

@@ -14,6 +14,7 @@ from app.models import (
     AIRecommendation,
     Asset,
     NetworkService,
+    Report,
     RiskAssessment,
     ScanFinding,
     ScanJob,

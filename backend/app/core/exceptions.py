@@ -167,3 +167,40 @@ class InsufficientContextException(AppException):
             error_code="INSUFFICIENT_CONTEXT",
             details=details,
         )
+
+
+class InsufficientReportDataException(AppException):
+    """Raised when the authoritative data required to generate a report is
+    not yet available (e.g. no deterministic risk assessment for the scan).
+    """
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            status_code=422,
+            error_code="INSUFFICIENT_REPORT_DATA",
+            details=details,
+        )
+
+
+class ReportRenderingException(AppException):
+    """Raised when PDF rendering fails or produces an invalid document."""
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            status_code=500,
+            error_code="REPORT_RENDERING_ERROR",
+            details=details,
+        )
+
+
+class ReportStorageException(AppException):
+    """Raised when a generated report cannot be safely stored or retrieved
+    from the report file storage root.
+    """
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            status_code=500,
+            error_code="REPORT_STORAGE_ERROR",
+            details=details,
+        )

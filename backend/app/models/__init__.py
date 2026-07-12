@@ -6,6 +6,7 @@ from app.models.vulnerability import Vulnerability
 from app.models.scan_finding import ScanFinding
 from app.models.risk_assessment import RiskAssessment
 from app.models.ai_recommendation import AIRecommendation
+from app.models.report import Report
 
 __all__ = [
     "Target",
@@ -16,4 +17,5 @@ __all__ = [
     "ScanFinding",
     "RiskAssessment",
     "AIRecommendation",
+    "Report",
 ]

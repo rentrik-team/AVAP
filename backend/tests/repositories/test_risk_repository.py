@@ -266,3 +266,40 @@ def test_get_all_scan_scores(risk_repository, scan_job):
     )
     scores = risk_repository.get_all_scan_scores()
     assert (scan_job.id, 7.0) in scores
+
+
+# --- get_by_scan_and_scope (added for Module 08 report data assembly) ---
+
+
+def test_get_by_scan_and_scope_returns_matching_rows(risk_repository, scan_job, asset):
+    risk_repository.upsert(
+        scope=RiskScope.ASSET,
+        risk_score=5.0,
+        risk_level=RiskLevel.MEDIUM,
+        calculation_version="1.0.0",
+        calculated_at=_now(),
+        supporting_factors={},
+        scan_id=scan_job.id,
+        asset_id=asset.id,
+    )
+    risk_repository.upsert(
+        scope=RiskScope.SCAN,
+        risk_score=5.0,
+        risk_level=RiskLevel.MEDIUM,
+        calculation_version="1.0.0",
+        calculated_at=_now(),
+        supporting_factors={},
+        scan_id=scan_job.id,
+    )
+
+    asset_rows = risk_repository.get_by_scan_and_scope(scan_job.id, RiskScope.ASSET)
+    assert len(asset_rows) == 1
+    assert asset_rows[0].asset_id == asset.id
+
+    scan_rows = risk_repository.get_by_scan_and_scope(scan_job.id, RiskScope.SCAN)
+    assert len(scan_rows) == 1
+
+
+def test_get_by_scan_and_scope_empty_when_none_calculated(risk_repository, scan_job):
+    rows = risk_repository.get_by_scan_and_scope(scan_job.id, RiskScope.VULNERABILITY)
+    assert rows == []
