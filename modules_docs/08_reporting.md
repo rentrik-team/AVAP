@@ -9,7 +9,7 @@
 **Status:** Implemented
 
 ---
-
+ 
 # Purpose
 
 The Reporting Engine is responsible for generating professional, standardized, and portable security assessment reports from deterministic risk assessments and AI-assisted remediation recommendations.
@@ -43,7 +43,7 @@ The Reporting Engine is responsible for:
 * Building report models
 * Applying report templates
 * Generating PDF reports
-* Generating JSON exports
+<!-- * Generating JSON exports -->
 * Generating HTML reports (Future)
 * Generating CSV exports (Future)
 * Storing report metadata
@@ -94,7 +94,7 @@ Reports should remain reproducible for identical assessment data.
                     │
        ┌────────────┼─────────────┐
        ▼            ▼             ▼
- PDF Generator  JSON Export  HTML Generator (Future)
+ PDF Generator                HTML Generator (Future)
        │            │             │
        └────────────┼─────────────┘
                     ▼
@@ -115,7 +115,7 @@ Reports should remain reproducible for identical assessment data.
 | Report Model Builder   | Creates report domain models        |
 | Template Engine        | Applies report templates            |
 | PDF Generator          | Generates PDF reports               |
-| JSON Exporter          | Produces JSON reports               |
+<!-- | JSON Exporter          | Produces JSON reports               | -->
 | Report Repository      | Stores report metadata              |
 | Download Service       | Serves generated reports            |
 
@@ -136,12 +136,12 @@ layout):
 |---|---|
 | Report Coordinator | `app/services/report_service.py` (`ReportService`) |
 | Report Data Aggregator / Report Model Builder | `app/reporting/generator.py` (`build_report_data`) |
-| Template Engine | `app/reporting/templates.py` (ReportLab Platypus styles, safe-text escaping) |
+| Template Engine | `app/reporting/templates.py` (ReportLab PlaJSONtypus styles, safe-text escaping) |
 | PDF Generator | `app/reporting/pdf.py` (`render_pdf`) |
 | Report Repository | `app/repositories/report_repository.py` |
 | Download Service | `GET /reports/{report_id}/download` (FastAPI `FileResponse`) |
 
-**PDF only for this increment.** JSON export is not implemented yet,
+**PDF only for this increment.**  export is not implemented yet,
 consistent with "if the documentation only requires PDF now, implement PDF
 now." The `ReportData` contract (`app/schemas/report.py`) is already fully
 format-neutral and Pydantic-serializable — a future JSON exporter can reuse
@@ -267,7 +267,7 @@ PDF generation must be deterministic.
 
 ---
 
-# JSON Export
+<!-- # JSON Export
 
 JSON exports provide machine-readable assessment data.
 
@@ -280,7 +280,7 @@ Use cases include:
 
 The JSON schema should remain versioned.
 
----
+--- -->
 
 # Future Export Formats
 
@@ -689,9 +689,9 @@ The Reporting Engine module is complete only when:
 * [x] Security tests passing
 * [x] API tests completed
 * [x] Documentation updated
-
+<!-- 
 JSON Export is intentionally deferred (see "Implemented Architecture and
-Scope" above); it is not part of this increment's Definition of Done.
+Scope" above); it is not part of this increment's Definition of Done. -->
 
 Only after meeting all criteria may development proceed to the Dashboard APIs module.
 
