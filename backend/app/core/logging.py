@@ -1,8 +1,7 @@
 import json
 import logging
 import sys
-from datetime import datetime, timezone
-from pathlib import Path
+from datetime import UTC, datetime
 from typing import Any
 
 from app.core.config import get_settings
@@ -14,9 +13,7 @@ class JSONFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         """Format the log record as a JSON string."""
         log_obj: dict[str, Any] = {
-            "timestamp": datetime.fromtimestamp(
-                record.created, tz=timezone.utc
-            ).isoformat(),
+            "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
             "level": record.levelname,
             "logger": record.name,
             "message": record.getMessage(),
@@ -28,14 +25,14 @@ class JSONFormatter(logging.Formatter):
 
         # Add extra context if passed via 'extra' dictionary
         if hasattr(record, "context"):
-            log_obj["context"] = getattr(record, "context")
+            log_obj["context"] = record.context
 
         return json.dumps(log_obj)
 
 
 def setup_logging() -> None:
     """Configure structured logging for the application.
-    
+
     Sets up JSON formatting to stdout and optionally to a file if configured.
     """
     settings = get_settings()
@@ -43,7 +40,7 @@ def setup_logging() -> None:
     # Create root logger
     root_logger = logging.getLogger()
     root_logger.setLevel(settings.log_level)
-    
+
     # Clear any existing handlers
     root_logger.handlers.clear()
 
@@ -59,7 +56,7 @@ def setup_logging() -> None:
     if settings.log_directory:
         log_dir = settings.log_directory_path
         log_dir.mkdir(parents=True, exist_ok=True)
-        
+
         # We could use a RotatingFileHandler here for production
         log_file = log_dir / "avap.log"
         file_handler = logging.FileHandler(log_file)

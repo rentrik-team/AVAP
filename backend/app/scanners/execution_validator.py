@@ -1,16 +1,15 @@
 import logging
-from typing import Set
 
 from app.core.enums import ScannerType, ScanProfile
 from app.core.exceptions import ValidationException
-from app.core.security import is_valid_ipv4, is_valid_ipv4_cidr, is_valid_hostname
+from app.core.security import is_valid_hostname, is_valid_ipv4, is_valid_ipv4_cidr
 
 logger = logging.getLogger(__name__)
 
 
 class ExecutionValidator:
     """Validates scan execution requests before they reach the execution phase.
-    
+
     Acts as a security and capability guard.
     """
 
@@ -18,17 +17,22 @@ class ExecutionValidator:
         # Define supported target types per scanner type
         self._supported_targets = {
             ScannerType.NMAP: {"ipv4", "cidr", "hostname"},
-            ScannerType.OPENVAS: {"ipv4", "hostname"},  # CIDR usually requires task splitting or distinct handling
+            ScannerType.OPENVAS: {
+                "ipv4",
+                "hostname",
+            },  # CIDR usually requires task splitting or distinct handling
         }
 
-    def validate_request(self, target: str, scanner_type: ScannerType, scan_profile: ScanProfile) -> None:
+    def validate_request(
+        self, target: str, scanner_type: ScannerType, scan_profile: ScanProfile
+    ) -> None:
         """Validate target format, scanner type, and target-scanner compatibility.
-        
+
         Args:
             target: The raw/normalized target string.
             scanner_type: The requested ScannerType enum.
             scan_profile: The requested ScanProfile enum.
-            
+
         Raises:
             ValidationException if validation fails.
         """
@@ -60,13 +64,15 @@ class ExecutionValidator:
         # Even though we use shell=False, we explicitly reject targets containing common shell metacharacters
         shell_chars = [";", "&&", "||", "|", "`", "$", "(", ")", "<", ">", "\n", "\r"]
         if any(char in target for char in shell_chars):
-            raise ValidationException("Target value contains disallowed shell characters.")
+            raise ValidationException(
+                "Target value contains disallowed shell characters."
+            )
 
         logger.debug(
             "Scan request validation passed",
             extra={
                 "target": target,
                 "scanner_type": scanner_type.value,
-                "target_type": target_type
-            }
+                "target_type": target_type,
+            },
         )

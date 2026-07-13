@@ -6,17 +6,18 @@ Create Date: 2026-07-13 09:00:00.000000
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 # revision identifiers, used by Alembic.
 revision: str = "0007"
-down_revision: Union[str, None] = "0006"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "0006"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 _TRIGGER_FUNCTION = "audit_events_block_mutation"
 _TRIGGER_NAME = "audit_events_no_update_delete"
@@ -122,16 +123,25 @@ def upgrade() -> None:
         unique=False,
     )
     op.create_index(
-        op.f("ix_audit_events_resource_id"), "audit_events", ["resource_id"], unique=False
+        op.f("ix_audit_events_resource_id"),
+        "audit_events",
+        ["resource_id"],
+        unique=False,
     )
     op.create_index(
         op.f("ix_audit_events_scan_id"), "audit_events", ["scan_id"], unique=False
     )
     op.create_index(
-        op.f("ix_audit_events_occurred_at"), "audit_events", ["occurred_at"], unique=False
+        op.f("ix_audit_events_occurred_at"),
+        "audit_events",
+        ["occurred_at"],
+        unique=False,
     )
     op.create_index(
-        "ix_audit_events_occurred_at_id", "audit_events", ["occurred_at", "id"], unique=False
+        "ix_audit_events_occurred_at_id",
+        "audit_events",
+        ["occurred_at", "id"],
+        unique=False,
     )
 
     # Database-level append-only enforcement (PostgreSQL only). Audit rows

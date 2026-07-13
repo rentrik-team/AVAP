@@ -8,6 +8,8 @@ response structures.
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
+from app.core.config import Settings
+
 
 @dataclass(frozen=True)
 class Prompt:
@@ -27,7 +29,16 @@ class AIProviderResponse:
 
 
 class AIProviderInterface(ABC):
-    """Common interface implemented by every AI provider adapter."""
+    """Common interface implemented by every AI provider adapter.
+
+    Every implementation must accept the application `Settings` as its sole
+    constructor argument (deriving its own provider-specific configuration,
+    e.g. API key and base URL, from it), so `AIManager.generate` can
+    construct any registered provider uniformly by type.
+    """
+
+    @abstractmethod
+    def __init__(self, settings: Settings) -> None: ...
 
     @abstractmethod
     def generate(self, prompt: Prompt) -> AIProviderResponse:

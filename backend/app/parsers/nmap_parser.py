@@ -1,8 +1,6 @@
 import logging
-import os
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405 -- XXE-safe, see call-site comment below
 from pathlib import Path
-from typing import List, Optional
 
 from app.core.enums import ScannerType
 from app.core.exceptions import ParserException
@@ -18,10 +16,10 @@ class NmapParser(BaseParser):
 
     def parse(self, artifact: ScanArtifact) -> AssessmentPackage:
         """Parse Nmap XML output from the given artifact.
-        
+
         Args:
             artifact: The ScanArtifact containing Nmap results.
-            
+
         Returns:
             A populated AssessmentPackage.
         """
@@ -34,7 +32,7 @@ class NmapParser(BaseParser):
 
         logger.info(
             "Parsing Nmap XML output",
-            extra={"scan_id": str(artifact.scan_id), "file_path": str(output_path)}
+            extra={"scan_id": str(artifact.scan_id), "file_path": str(output_path)},
         )
 
         try:
@@ -43,22 +41,22 @@ class NmapParser(BaseParser):
             # currently supported CPython versions, rejects entity-expansion
             # ("billion laughs") attacks via its built-in amplification limit.
             # No custom parser configuration or third-party library is required.
-            tree = ET.parse(output_path)
+            tree = ET.parse(output_path)  # noqa: S314 # nosec B314 -- justified above, stdlib ET is XXE-safe
             root = tree.getroot()
         except ET.ParseError as e:
             logger.error(
                 f"XML parse error in Nmap output: {e}",
-                extra={"scan_id": str(artifact.scan_id), "file_path": str(output_path)}
+                extra={"scan_id": str(artifact.scan_id), "file_path": str(output_path)},
             )
             raise ParserException(f"Failed to parse Nmap XML report: {e}") from e
         except Exception as e:
             logger.exception(
                 f"Unexpected error reading Nmap output file: {e}",
-                extra={"scan_id": str(artifact.scan_id)}
+                extra={"scan_id": str(artifact.scan_id)},
             )
             raise ParserException(f"Failed to read Nmap output file: {e}") from e
 
-        parsed_hosts: List[ParsedHost] = []
+        parsed_hosts: list[ParsedHost] = []
 
         # Parse every <host> element in the XML
         for host_node in root.findall("host"):
@@ -68,12 +66,12 @@ class NmapParser(BaseParser):
                 if addr_node.get("addrtype") == "ipv4":
                     ipv4_addr = addr_node.get("addr")
                     break
-            
+
             # If no IP, we skip or use a placeholder (Nmap should always provide an IP for a host)
             if not ipv4_addr:
                 logger.warning(
                     "Skipping host element with missing IPv4 address in Nmap report",
-                    extra={"scan_id": str(artifact.scan_id)}
+                    extra={"scan_id": str(artifact.scan_id)},
                 )
                 continue
 
@@ -100,7 +98,7 @@ class NmapParser(BaseParser):
                     os_name = osmatch_node.get("name")
 
             # 5. Parse Services / Open Ports
-            parsed_services: List[ParsedService] = []
+            parsed_services: list[ParsedService] = []
             ports_node = host_node.find("ports")
             if ports_node is not None:
                 for port_node in ports_node.findall("port"):
@@ -140,7 +138,7 @@ class NmapParser(BaseParser):
                             product=product,
                             version=version,
                             extra_info=extra_info,
-                            vulnerabilities=[]  # Nmap port scanner doesn't report vulnerabilities directly
+                            vulnerabilities=[],  # Nmap port scanner doesn't report vulnerabilities directly
                         )
                     )
 
@@ -149,7 +147,7 @@ class NmapParser(BaseParser):
                     ipv4=ipv4_addr,
                     hostname=hostname,
                     operating_system=os_name,
-                    services=parsed_services
+                    services=parsed_services,
                 )
             )
 
@@ -158,7 +156,7 @@ class NmapParser(BaseParser):
         scanner_version = root.get("version")
         if scanner_version:
             execution_metadata["scanner_version"] = scanner_version
-        
+
         args = root.get("args")
         if args:
             execution_metadata["arguments"] = args
@@ -167,5 +165,5 @@ class NmapParser(BaseParser):
             scan_id=artifact.scan_id,
             scanner_type=ScannerType.NMAP,
             parsed_hosts=parsed_hosts,
-            execution_metadata=execution_metadata
+            execution_metadata=execution_metadata,
         )

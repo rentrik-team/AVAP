@@ -1,19 +1,20 @@
 import uuid
+
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
 from app.api.dependencies.database import get_db
 from app.api.responses.api_response import SuccessResponse
-from app.core.exceptions import NotFoundException
 from app.repositories.asset_repository import AssetRepository
 from app.schemas.asset import AssetDetailResponse, AssetListResponse, AssetResponse
+from app.services.asset_service import AssetService
 
 router = APIRouter()
 
 
-def get_asset_repository(db: Session = Depends(get_db)) -> AssetRepository:
-    """Dependency to inject AssetRepository into routes."""
-    return AssetRepository(db)
+def get_asset_service(db: Session = Depends(get_db)) -> AssetService:
+    """Dependency to inject AssetService into routes."""
+    return AssetService(AssetRepository(db))
 
 
 @router.get(
@@ -28,22 +29,15 @@ def list_assets(
     hostname: str | None = Query(None, description="Filter by hostname"),
     port: int | None = Query(None, description="Filter by open port"),
     cve: str | None = Query(None, description="Filter by vulnerability CVE"),
-    repository: AssetRepository = Depends(get_asset_repository),
+    service: AssetService = Depends(get_asset_service),
 ) -> dict:
     """Retrieve a paginated, filtered list of assets."""
-    items, total = repository.get_all(
-        skip=skip,
-        limit=limit,
-        ip=ip,
-        hostname=hostname,
-        port=port,
-        cve=cve
+    items, total = service.get_all_assets(
+        skip=skip, limit=limit, ip=ip, hostname=hostname, port=port, cve=cve
     )
-    
+
     asset_responses = [AssetResponse.model_validate(item) for item in items]
-    return {
-        "data": AssetListResponse(assets=asset_responses, total=total)
-    }
+    return {"data": AssetListResponse(assets=asset_responses, total=total)}
 
 
 @router.get(
@@ -53,13 +47,10 @@ def list_assets(
 )
 def get_asset(
     asset_id: uuid.UUID,
-    repository: AssetRepository = Depends(get_asset_repository),
+    service: AssetService = Depends(get_asset_service),
 ) -> dict:
     """Retrieve details of a specific asset including open network services."""
-    asset = repository.get_by_id(asset_id)
-    if not asset:
-        raise NotFoundException(f"Asset with ID {asset_id} not found.")
-    
+    asset = service.get_asset(asset_id)
     return {"data": AssetDetailResponse.model_validate(asset)}
 
 
@@ -70,13 +61,7 @@ def get_asset(
 )
 def delete_asset(
     asset_id: uuid.UUID,
-    db: Session = Depends(get_db),
-    repository: AssetRepository = Depends(get_asset_repository),
+    service: AssetService = Depends(get_asset_service),
 ) -> None:
     """Delete an asset from the system."""
-    asset = repository.get_by_id(asset_id)
-    if not asset:
-        raise NotFoundException(f"Asset with ID {asset_id} not found.")
-    
-    repository.delete(asset)
-    db.commit()
+    service.delete_asset(asset_id)

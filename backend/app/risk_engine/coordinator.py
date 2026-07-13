@@ -11,6 +11,7 @@ from collections import defaultdict
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from app.core.exceptions import InternalException
 from app.models.scan_finding import ScanFinding
 from app.risk_engine.aggregator import AggregationResult, aggregate
 from app.risk_engine.calculator import (
@@ -54,6 +55,10 @@ def calculate_scan_risk(findings: Sequence[ScanFinding]) -> ScanRiskCalculation:
 
     finding_results: list[FindingRiskResult] = []
     for finding in vulnerable_findings:
+        if finding.vulnerability_id is None:
+            raise InternalException(
+                "Vulnerable finding unexpectedly has no vulnerability_id."
+            )
         context = build_context(vulnerable_findings, finding.vulnerability_id)
         result = calculate_vulnerability_risk(
             severity_score=finding.vulnerability.severity_score,
@@ -66,8 +71,13 @@ def calculate_scan_risk(findings: Sequence[ScanFinding]) -> ScanRiskCalculation:
         list
     )
     for finding_result in finding_results:
+        vulnerability_id = finding_result.finding.vulnerability_id
+        if vulnerability_id is None:
+            raise InternalException(
+                "Vulnerable finding unexpectedly has no vulnerability_id."
+            )
         asset_contributions[finding_result.finding.asset_id].append(
-            (finding_result.finding.vulnerability_id, finding_result.result.score)
+            (vulnerability_id, finding_result.result.score)
         )
 
     asset_results = {

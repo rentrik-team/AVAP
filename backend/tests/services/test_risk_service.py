@@ -229,11 +229,14 @@ def test_failed_calculation_leaves_no_partial_risk_state(
     scan_id = scan_job.id
     _seed_finding(db_session, scan_job, "192.168.100.1", 4.0, "Medium")
 
-    with patch.object(
-        risk_service.risk_repository,
-        "upsert",
-        side_effect=RuntimeError("simulated failure"),
-    ), pytest.raises(RuntimeError):
+    with (
+        patch.object(
+            risk_service.risk_repository,
+            "upsert",
+            side_effect=RuntimeError("simulated failure"),
+        ),
+        pytest.raises(RuntimeError),
+    ):
         risk_service.calculate_risk_for_scan(scan_id)
 
     remaining = (

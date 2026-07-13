@@ -1,27 +1,14 @@
-import logging
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
 
+# Import every model so Alembic's autogenerate sees the full metadata.
+import app.models  # noqa: F401
 from alembic import context
 
 # Import settings and Base model
 from app.core.config import get_settings
 from app.database.base import Base
-
-# Also need to import all models here so Alembic can see them
-from app.models import (
-    AIRecommendation,
-    Asset,
-    AuditEvent,
-    NetworkService,
-    Report,
-    RiskAssessment,
-    ScanFinding,
-    ScanJob,
-    Target,
-    Vulnerability,
-)
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -39,6 +26,7 @@ if config.config_file_name is not None:
 # add your model's MetaData object here
 # for 'autogenerate' support
 target_metadata = Base.metadata
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode.
@@ -78,9 +66,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

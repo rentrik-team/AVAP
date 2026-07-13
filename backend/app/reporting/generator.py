@@ -13,7 +13,7 @@ from collections import defaultdict
 from datetime import datetime
 
 from app.core.enums import RiskLevel, RiskScope
-from app.core.exceptions import InsufficientReportDataException
+from app.core.exceptions import InsufficientReportDataException, InternalException
 from app.models.asset import Asset
 from app.models.risk_assessment import RiskAssessment
 from app.models.scan_job import ScanJob
@@ -91,6 +91,10 @@ def build_report_data(
             # represented in the report; Module 08 never calculates risk itself.
             continue
 
+        if finding.vulnerability_id is None:
+            raise InternalException(
+                "Vulnerable finding unexpectedly has no vulnerability_id."
+            )
         vulnerability = vulnerability_repository.get_by_id(finding.vulnerability_id)
         if not vulnerability:
             continue

@@ -1,12 +1,13 @@
 import uuid
-from typing import Sequence, Tuple
+from collections.abc import Sequence
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.asset import Asset
+from app.models.scan_finding import ScanFinding
 from app.models.service import NetworkService
 from app.models.vulnerability import Vulnerability
-from app.models.scan_finding import ScanFinding
 
 
 class AssetRepository:
@@ -46,8 +47,8 @@ class AssetRepository:
         ip: str | None = None,
         hostname: str | None = None,
         port: int | None = None,
-        cve: str | None = None
-    ) -> Tuple[Sequence[Asset], int]:
+        cve: str | None = None,
+    ) -> tuple[Sequence[Asset], int]:
         """Retrieve a paginated, filtered list of assets along with the total count.
 
         Uses a subquery strategy for join-based filters (port, cve) to avoid
@@ -61,13 +62,16 @@ class AssetRepository:
             id_subq = select(Asset.id.distinct())
 
             if port is not None:
-                id_subq = id_subq.join(Asset.services).where(NetworkService.port == port)
+                id_subq = id_subq.join(Asset.services).where(
+                    NetworkService.port == port
+                )
 
             if cve is not None:
                 id_subq = (
-                    id_subq
-                    .join(ScanFinding, ScanFinding.asset_id == Asset.id)
-                    .join(Vulnerability, ScanFinding.vulnerability_id == Vulnerability.id)
+                    id_subq.join(ScanFinding, ScanFinding.asset_id == Asset.id)
+                    .join(
+                        Vulnerability, ScanFinding.vulnerability_id == Vulnerability.id
+                    )
                     .where(Vulnerability.cve.ilike(f"%{cve}%"))
                 )
 
@@ -77,15 +81,15 @@ class AssetRepository:
             if hostname:
                 id_subq = id_subq.where(Asset.hostname.ilike(f"%{hostname}%"))
 
-            id_subq = id_subq.subquery()
+            id_subquery = id_subq.subquery()
 
             # Main query filters on the subquery result
             stmt = (
                 select(Asset)
-                .where(Asset.id.in_(select(id_subq)))
+                .where(Asset.id.in_(select(id_subquery)))
                 .options(selectinload(Asset.services))
             )
-            count_stmt = select(func.count()).select_from(id_subq)
+            count_stmt = select(func.count()).select_from(id_subquery)
         else:
             # Simple query — no joins needed
             stmt = select(Asset).options(selectinload(Asset.services))

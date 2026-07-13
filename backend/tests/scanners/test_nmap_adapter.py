@@ -1,7 +1,8 @@
-import pytest
-from unittest.mock import MagicMock
 import uuid
 from pathlib import Path
+from unittest.mock import MagicMock
+
+import pytest
 
 from app.core.enums import ScannerType, ScanProfile
 from app.core.exceptions import ScannerExecutionException
@@ -43,7 +44,7 @@ def test_nmap_adapter_build_command():
 
 def test_nmap_adapter_build_command_sanitization():
     adapter = NmapAdapter()
-    
+
     # Reject option injection in target
     with pytest.raises(ScannerExecutionException) as exc:
         adapter.build_command("-sS", ScanProfile.PORT_SCAN, "out.xml")
@@ -58,12 +59,12 @@ def test_nmap_adapter_execute():
 
     adapter = NmapAdapter(executor=mock_executor)
     scan_id = uuid.uuid4()
-    
+
     result = adapter.execute(scan_id, "192.168.1.1", ScanProfile.DISCOVERY)
-    
+
     assert result is mock_artifact
     mock_executor.run_scanner.assert_called_once()
-    
+
     # Assert output directory contains the XML filename
     call_args = mock_executor.run_scanner.call_args[1]
     assert call_args["scanner_type"] == ScannerType.NMAP

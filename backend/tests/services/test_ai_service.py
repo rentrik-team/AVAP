@@ -325,11 +325,14 @@ def test_transaction_rollback_on_persistence_failure(
     ra = _make_risk_assessment(db_session, scan_job, asset, vulnerability)
     service = _service(db_session)
 
-    with patch.object(
-        service.ai_recommendation_repository,
-        "upsert",
-        side_effect=RuntimeError("db failure"),
-    ), pytest.raises(RuntimeError):
+    with (
+        patch.object(
+            service.ai_recommendation_repository,
+            "upsert",
+            side_effect=RuntimeError("db failure"),
+        ),
+        pytest.raises(RuntimeError),
+    ):
         service.generate_recommendation(ra.id)
 
     remaining = (

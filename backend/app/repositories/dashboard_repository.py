@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import Row, exists, func, select
 from sqlalchemy.orm import Session
 
-from app.core.enums import RiskScope, ScanStatus
+from app.core.enums import RiskLevel, RiskScope, ScanStatus
 from app.models.ai_recommendation import AIRecommendation
 from app.models.asset import Asset
 from app.models.report import Report
@@ -58,7 +58,7 @@ class DashboardRepository:
 
     def get_scan_status_distribution(self) -> dict[ScanStatus, int]:
         stmt = select(ScanJob.status, func.count(ScanJob.id)).group_by(ScanJob.status)
-        return dict(self.session.execute(stmt).all())
+        return {row[0]: row[1] for row in self.session.execute(stmt).all()}
 
     def get_average_scan_duration_seconds(self) -> float | None:
         stmt = select(func.avg(ScanJob.execution_duration)).where(
@@ -82,7 +82,7 @@ class DashboardRepository:
         stmt = select(
             Vulnerability.severity_rating, func.count(Vulnerability.id)
         ).group_by(Vulnerability.severity_rating)
-        return dict(self.session.execute(stmt).all())
+        return {row[0]: row[1] for row in self.session.execute(stmt).all()}
 
     # --- Risk statistics ---
     #
@@ -126,14 +126,14 @@ class DashboardRepository:
         )
         return self.session.execute(stmt).all()
 
-    def get_asset_risk_level_distribution(self) -> dict[str, int]:
+    def get_asset_risk_level_distribution(self) -> dict[RiskLevel, int]:
         ranked = self._ranked_asset_risk_subquery()
         stmt = (
             select(ranked.c.risk_level, func.count())
             .where(ranked.c.rn == 1)
             .group_by(ranked.c.risk_level)
         )
-        return dict(self.session.execute(stmt).all())
+        return {row[0]: row[1] for row in self.session.execute(stmt).all()}
 
     def _ranked_vulnerability_risk_subquery(self):
         return (
@@ -191,13 +191,13 @@ class DashboardRepository:
             )
             .group_by(RiskAssessment.vulnerability_id)
         )
-        return dict(self.session.execute(stmt).all())
+        return {row[0]: row[1] for row in self.session.execute(stmt).all()}
 
     # --- Report statistics ---
 
     def get_reports_by_format(self) -> dict[str, int]:
         stmt = select(Report.format, func.count(Report.id)).group_by(Report.format)
-        return dict(self.session.execute(stmt).all())
+        return {row[0]: row[1] for row in self.session.execute(stmt).all()}
 
     def get_latest_report_generated_at(self) -> datetime | None:
         return self.session.execute(select(func.max(Report.generated_at))).scalar()
@@ -208,13 +208,13 @@ class DashboardRepository:
         stmt = select(
             AIRecommendation.provider, func.count(AIRecommendation.id)
         ).group_by(AIRecommendation.provider)
-        return dict(self.session.execute(stmt).all())
+        return {row[0]: row[1] for row in self.session.execute(stmt).all()}
 
     def get_recommendations_by_model(self) -> dict[str, int]:
         stmt = select(AIRecommendation.model, func.count(AIRecommendation.id)).group_by(
             AIRecommendation.model
         )
-        return dict(self.session.execute(stmt).all())
+        return {row[0]: row[1] for row in self.session.execute(stmt).all()}
 
     def get_recommendations_by_severity(self) -> dict[str, int]:
         stmt = (
@@ -222,7 +222,7 @@ class DashboardRepository:
             .join(Vulnerability, AIRecommendation.vulnerability_id == Vulnerability.id)
             .group_by(Vulnerability.severity_rating)
         )
-        return dict(self.session.execute(stmt).all())
+        return {row[0]: row[1] for row in self.session.execute(stmt).all()}
 
     def get_remediation_coverage_counts(self) -> tuple[int, int]:
         """Return (eligible_count, current_count) for remediation coverage.

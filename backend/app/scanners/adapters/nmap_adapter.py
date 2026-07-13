@@ -1,8 +1,5 @@
 import logging
-import os
 import uuid
-from pathlib import Path
-from typing import List, Optional
 
 from app.core.config import get_settings
 from app.core.enums import ScannerType, ScanProfile
@@ -16,12 +13,12 @@ logger = logging.getLogger(__name__)
 
 class NmapAdapter(BaseScannerAdapter):
     """Adapter for Nmap port scanner.
-    
+
     Translates high-level targets and profiles into secure Nmap command arguments
     and manages the execution via ScannerExecutor.
     """
 
-    def __init__(self, executor: Optional[ScannerExecutor] = None):
+    def __init__(self, executor: ScannerExecutor | None = None):
         self.settings = get_settings()
         self.executor = executor or ScannerExecutor()
 
@@ -30,10 +27,10 @@ class NmapAdapter(BaseScannerAdapter):
 
     def _sanitize_target(self, target: str) -> str:
         """Sanitize target to prevent command-line option injection.
-        
+
         Args:
             target: The raw target string.
-            
+
         Returns:
             The sanitized target.
         """
@@ -45,14 +42,16 @@ class NmapAdapter(BaseScannerAdapter):
             )
         return sanitized
 
-    def build_command(self, target: str, scan_profile: ScanProfile, output_path: str) -> List[str]:
+    def build_command(
+        self, target: str, scan_profile: ScanProfile, output_path: str
+    ) -> list[str]:
         """Construct the secure command-line argument list for Nmap.
-        
+
         Args:
             target: The normalized target IP/hostname/CIDR.
             scan_profile: The ScanProfile enum value.
             output_path: The file path where the scanner should write its XML output.
-            
+
         Returns:
             A list of command-line arguments starting with the Nmap executable.
         """
@@ -79,20 +78,22 @@ class NmapAdapter(BaseScannerAdapter):
 
         # Output to XML file
         args.extend(["-oX", output_path])
-        
+
         # Append target at the very end
         args.append(sanitized_target)
 
         return args
 
-    def execute(self, scan_id: uuid.UUID, target: str, scan_profile: ScanProfile) -> ScanArtifact:
+    def execute(
+        self, scan_id: uuid.UUID, target: str, scan_profile: ScanProfile
+    ) -> ScanArtifact:
         """Execute the Nmap scan and return a standardized ScanArtifact.
-        
+
         Args:
             scan_id: The unique scan job identifier.
             target: The normalized target IP/hostname/CIDR.
             scan_profile: The ScanProfile enum value.
-            
+
         Returns:
             A standardized ScanArtifact containing execution details and results.
         """
@@ -111,12 +112,12 @@ class NmapAdapter(BaseScannerAdapter):
                 scanner_type=ScannerType.NMAP,
                 cmd_args=cmd_args,
                 scan_id=scan_id,
-                output_path=output_path
+                output_path=output_path,
             )
             return artifact
         except Exception as e:
             logger.error(
                 f"Failed to execute Nmap scan: {e}",
-                extra={"scan_id": str(scan_id), "target": target}
+                extra={"scan_id": str(scan_id), "target": target},
             )
             raise

@@ -64,9 +64,7 @@ def get_targets(
     """Retrieve a paginated list of all targets."""
     targets, total = service.get_all_targets(skip=skip, limit=limit)
     target_responses = [TargetResponse.model_validate(t) for t in targets]
-    return {
-        "data": TargetListResponse(targets=target_responses, total=total)
-    }
+    return {"data": TargetListResponse(targets=target_responses, total=total)}
 
 
 @router.get(

@@ -1,26 +1,29 @@
 import uuid
+
 import pytest
 from fastapi.testclient import TestClient
-from app.core.enums import ScanStatus
+
 from app.api.routes.v1.scans import get_scan_service
-from app.services.audit_service import AuditService
-from app.services.scan_service import ScanService
+from app.core.enums import ExecutionStatus, ScanStatus
+from app.main import app
+from app.models.scan_job import ScanJob
 from app.repositories.audit_repository import AuditRepository
 from app.repositories.scan_repository import ScanRepository
 from app.repositories.target_repository import TargetRepository
 from app.scanners.interfaces import IScannerEngine
 from app.scanners.scan_artifact import ScanArtifact
-from app.core.enums import ExecutionStatus
-from app.models.scan_job import ScanJob
-from app.main import app
+from app.services.audit_service import AuditService
+from app.services.scan_service import ScanService
 
 
 class MockScannerEngine(IScannerEngine):
-    def dispatch_scan(self, scan_id: uuid.UUID, target: str, scan_profile: str, scanner_type=None):
+    def dispatch_scan(
+        self, scan_id: uuid.UUID, target: str, scan_profile: str, scanner_type=None
+    ):
         return ScanArtifact(
             scan_id=scan_id,
             execution_status=ExecutionStatus.SUCCESS,
-            stdout="Mock output"
+            stdout="Mock output",
         )
 
 
@@ -31,8 +34,9 @@ def override_scan_service(db_session):
             scan_repository=ScanRepository(db_session),
             target_repository=TargetRepository(db_session),
             audit_service=AuditService(AuditRepository(db_session)),
-            scanner_engine=MockScannerEngine()
+            scanner_engine=MockScannerEngine(),
         )
+
     app.dependency_overrides[get_scan_service] = mock_get_scan_service
     yield
     app.dependency_overrides.pop(get_scan_service, None)
@@ -50,24 +54,26 @@ def setup_target(client: TestClient):
 def test_create_scan(client: TestClient, setup_target):
     target_id = setup_target["id"]
     response = client.post(
-        "/api/v1/scans/", 
-        json={"target_id": target_id, "scan_profile": "full", "priority": "normal"}
+        "/api/v1/scans",
+        json={"target_id": target_id, "scan_profile": "full", "priority": "normal"},
     )
-    
+
     assert response.status_code == 201
-    data = response.json()
+    data = response.json()["data"]
     assert "scan_id" in data
     assert data["target_id"] == target_id
-    assert data["status"] == "RUNNING"  # Now RUNNING since engine successfully dispatches
+    assert (
+        data["status"] == "RUNNING"
+    )  # Now RUNNING since engine successfully dispatches
 
 
 def test_list_scans(client: TestClient, setup_target):
     target_id = setup_target["id"]
-    client.post("/api/v1/scans/", json={"target_id": target_id, "scan_profile": "full"})
-    
-    response = client.get("/api/v1/scans/")
+    client.post("/api/v1/scans", json={"target_id": target_id, "scan_profile": "full"})
+
+    response = client.get("/api/v1/scans")
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert "scans" in data
     assert "total" in data
     assert len(data["scans"]) >= 1
@@ -76,28 +82,26 @@ def test_list_scans(client: TestClient, setup_target):
 def test_get_scan(client: TestClient, setup_target):
     target_id = setup_target["id"]
     create_response = client.post(
-        "/api/v1/scans/", 
-        json={"target_id": target_id, "scan_profile": "full"}
+        "/api/v1/scans", json={"target_id": target_id, "scan_profile": "full"}
     )
-    scan_id = create_response.json()["scan_id"]
-    
+    scan_id = create_response.json()["data"]["scan_id"]
+
     response = client.get(f"/api/v1/scans/{scan_id}")
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert data["scan_id"] == scan_id
 
 
 def test_get_scan_status(client: TestClient, setup_target):
     target_id = setup_target["id"]
     create_response = client.post(
-        "/api/v1/scans/", 
-        json={"target_id": target_id, "scan_profile": "full"}
+        "/api/v1/scans", json={"target_id": target_id, "scan_profile": "full"}
     )
-    scan_id = create_response.json()["scan_id"]
-    
+    scan_id = create_response.json()["data"]["scan_id"]
+
     response = client.get(f"/api/v1/scans/{scan_id}/status")
     assert response.status_code == 200
-    data = response.json()
+    data = response.json()["data"]
     assert data["scan_id"] == scan_id
     assert "status" in data
 
@@ -109,11 +113,11 @@ def test_delete_scan_conflict_while_running(client: TestClient, setup_target):
     """
     target_id = setup_target["id"]
     create_response = client.post(
-        "/api/v1/scans/",
-        json={"target_id": target_id, "scan_profile": "full"}
+        "/api/v1/scans", json={"target_id": target_id, "scan_profile": "full"}
     )
-    scan_id = create_response.json()["scan_id"]
-    assert create_response.json()["status"] == "RUNNING"
+    data = create_response.json()["data"]
+    scan_id = data["scan_id"]
+    assert data["status"] == "RUNNING"
 
     response = client.delete(f"/api/v1/scans/{scan_id}")
     assert response.status_code == 409
@@ -125,10 +129,9 @@ def test_delete_scan_succeeds_when_not_running(
     """A scan in a terminal state (as set by Module 05 processing) can be deleted."""
     target_id = setup_target["id"]
     create_response = client.post(
-        "/api/v1/scans/",
-        json={"target_id": target_id, "scan_profile": "full"}
+        "/api/v1/scans", json={"target_id": target_id, "scan_profile": "full"}
     )
-    scan_id = create_response.json()["scan_id"]
+    scan_id = create_response.json()["data"]["scan_id"]
 
     scan_job = db_session.get(ScanJob, uuid.UUID(scan_id))
     scan_job.status = ScanStatus.COMPLETED

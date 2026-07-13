@@ -78,10 +78,10 @@ def test_full_lifecycle_produces_expected_audit_trail(
     app.dependency_overrides[get_scan_service] = override_scan_service
     try:
         scan_response = client.post(
-            "/api/v1/scans/", json={"target_id": target_id, "scan_profile": "full"}
+            "/api/v1/scans", json={"target_id": target_id, "scan_profile": "full"}
         )
         assert scan_response.status_code == 201
-        scan_id = uuid.UUID(scan_response.json()["scan_id"])
+        scan_id = uuid.UUID(scan_response.json()["data"]["scan_id"])
     finally:
         app.dependency_overrides.pop(get_scan_service, None)
 

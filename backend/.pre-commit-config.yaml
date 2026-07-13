@@ -1,0 +1,21 @@
+# Config lives in backend/, but pre-commit matches file paths relative to
+# the git repository root, so every pattern below is prefixed with backend/.
+# Install with: pre-commit install -c backend/.pre-commit-config.yaml
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.21
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        files: ^backend/
+      - id: ruff-format
+        files: ^backend/
+
+  - repo: local
+    hooks:
+      - id: mypy
+        name: mypy
+        entry: bash -c 'cd backend && python -m mypy app'
+        language: system
+        pass_filenames: false
+        files: ^backend/app/.*\.py$

@@ -8,7 +8,9 @@ reaches a ReportLab `Paragraph`, which otherwise interprets a small
 XML-like markup language in its input.
 """
 
-from xml.sax.saxutils import escape
+from xml.sax.saxutils import (
+    escape,  # nosec B406 -- output-escaping only, never parses XML
+)
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER

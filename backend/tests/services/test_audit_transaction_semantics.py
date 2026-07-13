@@ -44,12 +44,14 @@ from app.repositories.scan_finding_repository import ScanFindingRepository
 from app.repositories.scan_repository import ScanRepository
 from app.repositories.target_repository import TargetRepository
 from app.repositories.vulnerability_repository import VulnerabilityRepository
+from app.schemas.scan import CreateScanRequest
 from app.schemas.target import CreateTargetRequest
 from app.services.ai_service import AIService
 from app.services.audit_service import AuditService
 from app.services.inventory_service import InventoryService
 from app.services.report_service import ReportService
 from app.services.risk_service import RiskService
+from app.services.scan_service import ScanService
 from app.services.target_service import TargetService
 
 
@@ -66,7 +68,7 @@ def _events(db_session, event_type=None, outcome=None):
     return query.all()
 
 
-# --- TargetService: best-effort, post-commit audit (documented trust boundary) ---
+# --- TargetService: shared transaction (repository flush + audit commit) ---
 
 
 def test_target_created_success_event_persisted(db_session):
@@ -81,22 +83,23 @@ def test_target_created_success_event_persisted(db_session):
     assert events[0].resource_id == target.id
 
 
-def test_target_created_audit_failure_does_not_undo_already_committed_target(
-    db_session,
-):
-    """Documented trust boundary: TargetRepository.create() commits
-    synchronously before the audit call ever runs, so an audit failure
-    here cannot roll back the target — it is logged and swallowed."""
+def test_target_created_audit_failure_rolls_back_target_creation(db_session):
+    """TargetRepository.create() only flushes; TargetService owns the
+    commit. If the audit insert fails inside the shared transaction, the
+    whole transaction (including the new target) rolls back rather than
+    reporting a false SUCCESS."""
     audit_service = _audit(db_session)
     service = TargetService(TargetRepository(db_session), audit_service)
 
-    with patch.object(
-        audit_service, "append_event", side_effect=RuntimeError("audit db down")
+    with (
+        patch.object(
+            audit_service, "append_event", side_effect=RuntimeError("audit db down")
+        ),
+        pytest.raises(RuntimeError),
     ):
-        target = service.create_target(CreateTargetRequest(target="198.51.100.2"))
+        service.create_target(CreateTargetRequest(target="198.51.100.2"))
 
-    # The target itself is durably persisted regardless of the audit failure.
-    assert TargetRepository(db_session).get_by_id(target.id) is not None
+    assert TargetRepository(db_session).get_by_value("198.51.100.2") is None
     assert _events(db_session, AuditEventType.TARGET_CREATED) == []
 
 
@@ -110,6 +113,79 @@ def test_target_deleted_success_event_persisted(db_session):
     events = _events(db_session, AuditEventType.TARGET_DELETED)
     assert len(events) == 1
     assert events[0].resource_id == target.id
+
+
+# --- ScanService: shared transaction (repository flush + audit commit) ---
+
+
+def _scan_service(db_session, audit_service) -> ScanService:
+    return ScanService(
+        scan_repository=ScanRepository(db_session),
+        target_repository=TargetRepository(db_session),
+        audit_service=audit_service,
+        scanner_engine=None,
+    )
+
+
+@pytest.fixture
+def audit_target(db_session):
+    target = Target(target="198.51.100.10", target_type=TargetType.IPV4)
+    db_session.add(target)
+    db_session.commit()
+    return target
+
+
+def test_scan_created_success_event_persisted(db_session, audit_target):
+    audit_service = _audit(db_session)
+    service = _scan_service(db_session, audit_service)
+
+    scan_job = service.create_scan(
+        CreateScanRequest(target_id=audit_target.id, scan_profile="full")
+    )
+
+    events = _events(db_session, AuditEventType.SCAN_CREATED)
+    assert len(events) == 1
+    assert events[0].outcome == AuditOutcome.SUCCESS
+    assert events[0].resource_id == scan_job.id
+
+
+def test_scan_created_audit_failure_rolls_back_scan_creation(db_session, audit_target):
+    """ScanRepository.create() only flushes; ScanService owns the commit.
+    If the audit insert fails inside the shared transaction, the whole
+    transaction (including the new scan job) rolls back rather than
+    reporting a false SUCCESS."""
+    audit_service = _audit(db_session)
+    service = _scan_service(db_session, audit_service)
+
+    with (
+        patch.object(
+            audit_service, "append_event", side_effect=RuntimeError("audit db down")
+        ),
+        pytest.raises(RuntimeError),
+    ):
+        service.create_scan(
+            CreateScanRequest(target_id=audit_target.id, scan_profile="full")
+        )
+
+    remaining = (
+        db_session.query(ScanJob).filter(ScanJob.target_id == audit_target.id).count()
+    )
+    assert remaining == 0
+    assert _events(db_session, AuditEventType.SCAN_CREATED) == []
+
+
+def test_scan_deleted_success_event_persisted(db_session, audit_target):
+    audit_service = _audit(db_session)
+    service = _scan_service(db_session, audit_service)
+    scan_job = service.create_scan(
+        CreateScanRequest(target_id=audit_target.id, scan_profile="full")
+    )
+
+    service.delete_scan(scan_job.id)
+
+    events = _events(db_session, AuditEventType.SCAN_DELETED)
+    assert len(events) == 1
+    assert events[0].resource_id == scan_job.id
 
 
 # --- InventoryService: shared tx for SUCCESS, separate tx for FAILURE ---

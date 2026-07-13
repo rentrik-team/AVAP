@@ -1,10 +1,11 @@
-import pytest
-import tempfile
 import os
+import tempfile
 import uuid
 from pathlib import Path
 
-from app.core.enums import ScannerType, ExecutionStatus
+import pytest
+
+from app.core.enums import ExecutionStatus, ScannerType
 from app.parsers.openvas_parser import OpenVASParser
 from app.scanners.scan_artifact import ScanArtifact
 
@@ -45,7 +46,9 @@ def mock_openvas_xml():
 
 
 def test_openvas_parser_success(mock_openvas_xml):
-    with tempfile.NamedTemporaryFile(suffix=".xml", mode="w", delete=False, encoding="utf-8") as tmp:
+    with tempfile.NamedTemporaryFile(
+        suffix=".xml", mode="w", delete=False, encoding="utf-8"
+    ) as tmp:
         tmp.write(mock_openvas_xml)
         tmp_path = Path(tmp.name)
 
@@ -54,25 +57,25 @@ def test_openvas_parser_success(mock_openvas_xml):
             scan_id=uuid.uuid4(),
             scanner_type=ScannerType.OPENVAS,
             execution_status=ExecutionStatus.SUCCESS,
-            output_path=tmp_path
+            output_path=tmp_path,
         )
-        
+
         parser = OpenVASParser()
         package = parser.parse(artifact)
 
         assert package.scanner_type == ScannerType.OPENVAS
         assert len(package.parsed_hosts) == 1
-        
+
         host = package.parsed_hosts[0]
         assert host.ipv4 == "192.168.1.5"
-        
+
         # Open ports (22 and 80)
         assert len(host.services) == 2
-        
+
         service_22 = next(s for s in host.services if s.port == 22)
         assert service_22.protocol == "tcp"
         assert len(service_22.vulnerabilities) == 1
-        
+
         vuln_22 = service_22.vulnerabilities[0]
         assert vuln_22.name == "SSH Weak Algorithms Detected"  # NVT name override
         assert vuln_22.severity_score == 4.3
@@ -83,13 +86,13 @@ def test_openvas_parser_success(mock_openvas_xml):
         service_80 = next(s for s in host.services if s.port == 80)
         assert service_80.protocol == "tcp"
         assert len(service_80.vulnerabilities) == 1
-        
+
         vuln_80 = service_80.vulnerabilities[0]
         assert vuln_80.name == "Apache Version Leak"
         assert vuln_80.severity_score == 7.5
         assert vuln_80.severity_rating == "High"
         assert vuln_80.cve is None  # nocve should map to None
-    
+
     finally:
         os.unlink(tmp_path)
 

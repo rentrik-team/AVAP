@@ -12,10 +12,10 @@ _LABEL_REGEX = re.compile(
 
 def is_valid_ipv4(ip_str: str) -> bool:
     """Validate if a string is a valid IPv4 address.
-    
+
     Args:
         ip_str: The string to validate.
-        
+
     Returns:
         True if valid IPv4 address, False otherwise.
     """
@@ -28,10 +28,10 @@ def is_valid_ipv4(ip_str: str) -> bool:
 
 def is_valid_ipv4_cidr(cidr_str: str) -> bool:
     """Validate if a string is a valid IPv4 CIDR network.
-    
+
     Args:
         cidr_str: The string to validate.
-        
+
     Returns:
         True if valid IPv4 network, False otherwise.
     """
@@ -46,10 +46,10 @@ def is_valid_ipv4_cidr(cidr_str: str) -> bool:
 
 def is_valid_hostname(hostname: str) -> bool:
     """Validate if a string is an RFC-compliant hostname.
-    
+
     Args:
         hostname: The string to validate.
-        
+
     Returns:
         True if valid hostname, False otherwise.
     """
@@ -61,7 +61,7 @@ def is_valid_hostname(hostname: str) -> bool:
         hostname = hostname[:-1]
 
     labels = hostname.split(".")
-    
+
     # Needs at least one label, though usually we expect a TLD (2+)
     # For flexibility in internal networks, we allow single labels
     if not labels:
@@ -76,21 +76,18 @@ def is_valid_hostname(hostname: str) -> bool:
     # never a hostname — even when it has an invalid octet count or range.
     # Such values must be rejected outright rather than falling through to
     # hostname classification just because IPv4 parsing failed on them.
-    if len(labels) > 1 and all(label.isdigit() for label in labels):
-        return False
-
-    return True
+    return not (len(labels) > 1 and all(label.isdigit() for label in labels))
 
 
 def normalize_target_value(value: str) -> str:
     """Normalize a target value for consistent storage and comparison.
-    
+
     - Strips leading/trailing whitespace
     - Converts to lowercase
-    
+
     Args:
         value: The raw target string.
-        
+
     Returns:
         The normalized target string.
     """

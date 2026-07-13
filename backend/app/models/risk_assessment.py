@@ -126,4 +126,5 @@ class RiskAssessment(Base, TimestampMixin):
             sqlite_where=scope == RiskScope.ASSESSMENT,
             postgresql_where=scope == RiskScope.ASSESSMENT,
         ),
+        Index("ix_risk_assessments_calculated_at", "calculated_at"),
     )

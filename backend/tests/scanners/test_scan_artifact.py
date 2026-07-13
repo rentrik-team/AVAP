@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 from pathlib import Path
-from datetime import datetime, timezone
+
 from app.core.enums import ExecutionStatus, ScannerType
 from app.scanners.scan_artifact import ScanArtifact
 
@@ -17,7 +18,7 @@ def test_scan_artifact_creation():
         stdout="nmap scan stdout",
         stderr="nmap scan stderr",
         output_path=Path("nonexistent_nmap.xml"),
-        metadata={"hosts_up": 1}
+        metadata={"hosts_up": 1},
     )
 
     assert artifact.scan_id == scan_id
@@ -37,6 +38,10 @@ def test_scan_artifact_creation():
 
 def test_scan_artifact_failure_states():
     """Verify is_successful helper for different ExecutionStatus values."""
-    for status in [ExecutionStatus.FAILED, ExecutionStatus.TIMEOUT, ExecutionStatus.ERROR]:
+    for status in [
+        ExecutionStatus.FAILED,
+        ExecutionStatus.TIMEOUT,
+        ExecutionStatus.ERROR,
+    ]:
         artifact = ScanArtifact(execution_status=status)
         assert artifact.is_successful is False

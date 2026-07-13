@@ -10,7 +10,12 @@ from sqlalchemy.orm import Session
 
 from app.audit.context import AuditContext
 from app.core.config import Settings, get_settings
-from app.core.enums import AuditEventCategory, AuditEventType, AuditOutcome, AuditResourceType
+from app.core.enums import (
+    AuditEventCategory,
+    AuditEventType,
+    AuditOutcome,
+    AuditResourceType,
+)
 from app.core.exceptions import (
     InsufficientReportDataException,
     NotFoundException,

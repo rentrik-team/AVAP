@@ -14,19 +14,10 @@ from app.database.session import engine
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Lifecycle events for the FastAPI application."""
-    # Setup structured logging
     setup_logging()
-    
-    # Optionally verify database connection here
-    # try:
-    #     with engine.connect() as connection:
-    #         pass
-    # except Exception as e:
-    #     import logging
-    #     logging.getLogger(__name__).critical(f"Failed to connect to database: {e}")
-        
+
     yield
-    
+
     # Cleanup on shutdown
     engine.dispose()
 
@@ -45,12 +36,16 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS configuration
-    # Restrict this in production
+    # CORS configuration. No authentication/cookies exist yet (see
+    # ai_contract.md — deferred to a future phase), so credentialed
+    # cross-origin requests are not a concern; allow_credentials=True
+    # combined with a wildcard origin is a contradictory, browser-rejected
+    # configuration and must not be reintroduced without a concrete origin
+    # allowlist. Restrict allow_origins before the frontend phase begins.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["*"],
-        allow_credentials=True,
+        allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],
     )

@@ -6,7 +6,7 @@
 
 **Version:** 1.0
 
-**Status:** Planned
+**Status:** Implemented
 
 ---
 
@@ -542,6 +542,21 @@ The Scan Management module is complete only when:
 - Repository committed according to project standards
 
 Only after satisfying all criteria may development proceed to the Scanner Engine module.
+
+---
+
+# Backend Hardening Phase Update
+
+Two pre-existing deviations from later modules' conventions were corrected
+during the Backend Hardening & Stabilization phase, with no change to
+business logic or persisted data shape:
+
+* `ScanRepository.create`/`update`/`delete` now only flush; `ScanService`
+  owns the commit (previously the repository committed internally). See
+  `backend/backend.md` → "Audit event transaction pattern".
+* Scan routes (`/api/v1/scans`) now use the `SuccessResponse[T]` envelope
+  and the no-trailing-slash path convention used by every other module,
+  instead of returning raw response models at `/api/v1/scans/`.
 
 ---
 

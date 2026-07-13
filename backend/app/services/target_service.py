@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Sequence
+from collections.abc import Sequence
 
 from app.audit.context import AuditContext
 from app.core.enums import (
@@ -35,31 +35,27 @@ class TargetService:
         self.repository = repository
         self.audit_service = audit_service
 
-    def _audit_best_effort(
+    def _commit_with_audit(
         self,
         event_type: AuditEventType,
-        outcome: AuditOutcome,
         context: AuditContext,
         resource_id: uuid.UUID,
         metadata: dict | None = None,
     ) -> None:
-        """Record a TARGET-category audit event for an action whose
-        underlying repository already committed synchronously before this
-        call (TargetRepository.create/update/delete commit internally, a
-        pre-existing Module 01 pattern this module does not redesign).
+        """Append a TARGET-category audit event in the same transaction as
+        the already-flushed target mutation, then commit both atomically.
 
-        This is a documented, best-effort trust boundary: the target
-        mutation has already durably happened by the time this runs, so
-        audit persistence failure here cannot roll back the business
-        action. It is logged and swallowed rather than raised, since
-        raising here would incorrectly report an already-successful
-        mutation as failed.
+        Shared transaction (preferred pattern, see backend.md → "Audit
+        event transaction pattern"): if the audit insert or its metadata
+        validation fails, this raises before commit and the entire
+        mutation (repository flush included) rolls back rather than being
+        reported as successful.
         """
         try:
             self.audit_service.append_event(
                 event_type=event_type,
                 category=AuditEventCategory.TARGET,
-                outcome=outcome,
+                outcome=AuditOutcome.SUCCESS,
                 context=context,
                 resource_type=AuditResourceType.TARGET,
                 resource_id=resource_id,
@@ -69,36 +65,39 @@ class TargetService:
         except Exception:
             self.repository.session.rollback()
             logger.error(
-                "Audit subsystem failed to record a target event; the "
-                "already-committed target mutation is unaffected.",
+                "Target mutation failed to commit; transaction rolled back.",
                 extra={"event_type": event_type.value, "resource_id": str(resource_id)},
                 exc_info=True,
             )
+            raise
 
     def _determine_target_type(self, target_value: str) -> TargetType:
         """Classify a target string into its TargetType enum.
-        
+
         Args:
             target_value: The target string.
-            
+
         Returns:
             The TargetType enum value.
-            
+
         Raises:
             ValidationException: If the target does not match any supported type.
         """
         if is_valid_ipv4(target_value):
             return TargetType.IPV4
-            
+
         if is_valid_ipv4_cidr(target_value):
             return TargetType.CIDR
-            
+
         if is_valid_hostname(target_value):
             return TargetType.HOSTNAME
-            
+
         raise ValidationException(
             message=f"Unsupported or invalid target format: '{target_value}'",
-            details={"target": target_value, "allowed_formats": ["IPv4", "CIDR", "Hostname"]}
+            details={
+                "target": target_value,
+                "allowed_formats": ["IPv4", "CIDR", "Hostname"],
+            },
         )
 
     def create_target(
@@ -127,18 +126,18 @@ class TargetService:
             # we can proactively throw it here to avoid burning sequence numbers,
             # but raising it directly keeps things clean.
             from app.core.exceptions import DuplicateException
+
             raise DuplicateException(
                 message=f"Target '{normalized_value}' already exists.",
-                details={"target": normalized_value}
+                details={"target": normalized_value},
             )
 
         # 4. Construct model and persist
         target = Target(target=normalized_value, target_type=target_type)
         created = self.repository.create(target)
 
-        self._audit_best_effort(
+        self._commit_with_audit(
             event_type=AuditEventType.TARGET_CREATED,
-            outcome=AuditOutcome.SUCCESS,
             context=audit_context or AuditContext.system(),
             resource_id=created.id,
             metadata={"target_type": created.target_type.value},
@@ -147,13 +146,13 @@ class TargetService:
 
     def get_target(self, target_id: uuid.UUID) -> Target:
         """Retrieve a single target by ID.
-        
+
         Args:
             target_id: The target's UUID.
-            
+
         Returns:
             The Target model.
-            
+
         Raises:
             NotFoundException: If the target does not exist.
         """
@@ -162,13 +161,15 @@ class TargetService:
             raise NotFoundException(message=f"Target not found: {target_id}")
         return target
 
-    def get_all_targets(self, skip: int = 0, limit: int = 50) -> tuple[Sequence[Target], int]:
+    def get_all_targets(
+        self, skip: int = 0, limit: int = 50
+    ) -> tuple[Sequence[Target], int]:
         """Retrieve all targets with pagination.
-        
+
         Args:
             skip: Offset.
             limit: Max results.
-            
+
         Returns:
             Tuple of (targets, total_count).
         """
@@ -200,9 +201,10 @@ class TargetService:
         existing = self.repository.get_by_value(normalized_value)
         if existing and existing.id != target_id:
             from app.core.exceptions import DuplicateException
+
             raise DuplicateException(
                 message=f"Target '{normalized_value}' already exists.",
-                details={"target": normalized_value}
+                details={"target": normalized_value},
             )
 
         # Update
@@ -211,9 +213,8 @@ class TargetService:
 
         updated = self.repository.update(target)
 
-        self._audit_best_effort(
+        self._commit_with_audit(
             event_type=AuditEventType.TARGET_UPDATED,
-            outcome=AuditOutcome.SUCCESS,
             context=audit_context or AuditContext.system(),
             resource_id=updated.id,
             metadata={"target_type": updated.target_type.value},
@@ -233,9 +234,8 @@ class TargetService:
         target_type_value = target.target_type.value
         self.repository.delete(target)
 
-        self._audit_best_effort(
+        self._commit_with_audit(
             event_type=AuditEventType.TARGET_DELETED,
-            outcome=AuditOutcome.SUCCESS,
             context=audit_context or AuditContext.system(),
             resource_id=target_id_value,
             metadata={"target_type": target_type_value},

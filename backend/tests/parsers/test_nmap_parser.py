@@ -1,10 +1,11 @@
-import pytest
-import tempfile
 import os
+import tempfile
 import uuid
 from pathlib import Path
 
-from app.core.enums import ScannerType, ExecutionStatus
+import pytest
+
+from app.core.enums import ExecutionStatus, ScannerType
 from app.core.exceptions import ParserException
 from app.parsers.nmap_parser import NmapParser
 from app.scanners.scan_artifact import ScanArtifact
@@ -44,7 +45,9 @@ def mock_nmap_xml():
 
 def test_nmap_parser_success(mock_nmap_xml):
     # Write mock xml to temporary file
-    with tempfile.NamedTemporaryFile(suffix=".xml", mode="w", delete=False, encoding="utf-8") as tmp:
+    with tempfile.NamedTemporaryFile(
+        suffix=".xml", mode="w", delete=False, encoding="utf-8"
+    ) as tmp:
         tmp.write(mock_nmap_xml)
         tmp_path = Path(tmp.name)
 
@@ -53,41 +56,43 @@ def test_nmap_parser_success(mock_nmap_xml):
             scan_id=uuid.uuid4(),
             scanner_type=ScannerType.NMAP,
             execution_status=ExecutionStatus.SUCCESS,
-            output_path=tmp_path
+            output_path=tmp_path,
         )
-        
+
         parser = NmapParser()
         package = parser.parse(artifact)
 
         assert package.scanner_type == ScannerType.NMAP
         assert len(package.parsed_hosts) == 1
-        
+
         host = package.parsed_hosts[0]
         assert host.ipv4 == "192.168.1.1"
         assert host.hostname == "gateway.local"
         assert host.operating_system == "Linux 5.4"
-        
+
         # We only expect open ports (80 and 22), port 443 was closed
         assert len(host.services) == 2
-        
+
         service_80 = next(s for s in host.services if s.port == 80)
         assert service_80.protocol == "tcp"
         assert service_80.service_name == "http"
         assert service_80.product == "Apache httpd"
         assert service_80.version == "2.4.41"
         assert service_80.extra_info == "Unix"
-        
+
         service_22 = next(s for s in host.services if s.port == 22)
         assert service_22.service_name == "ssh"
         assert service_22.product == "OpenSSH"
         assert service_22.version == "8.2p1"
-    
+
     finally:
         os.unlink(tmp_path)
 
 
 def test_nmap_parser_corrupted_xml():
-    with tempfile.NamedTemporaryFile(suffix=".xml", mode="w", delete=False, encoding="utf-8") as tmp:
+    with tempfile.NamedTemporaryFile(
+        suffix=".xml", mode="w", delete=False, encoding="utf-8"
+    ) as tmp:
         tmp.write("<nmaprun><host>broken-xml")
         tmp_path = Path(tmp.name)
 
@@ -95,7 +100,7 @@ def test_nmap_parser_corrupted_xml():
         artifact = ScanArtifact(
             scan_id=uuid.uuid4(),
             output_path=tmp_path,
-            execution_status=ExecutionStatus.SUCCESS
+            execution_status=ExecutionStatus.SUCCESS,
         )
         parser = NmapParser()
         with pytest.raises(ParserException) as exc:
@@ -121,7 +126,9 @@ def test_nmap_parser_xxe_protection():
   </host>
 </nmaprun>
 """
-    with tempfile.NamedTemporaryFile(suffix=".xml", mode="w", delete=False, encoding="utf-8") as tmp:
+    with tempfile.NamedTemporaryFile(
+        suffix=".xml", mode="w", delete=False, encoding="utf-8"
+    ) as tmp:
         tmp.write(xxe_xml)
         tmp_path = Path(tmp.name)
 
@@ -129,10 +136,10 @@ def test_nmap_parser_xxe_protection():
         artifact = ScanArtifact(
             scan_id=uuid.uuid4(),
             output_path=tmp_path,
-            execution_status=ExecutionStatus.SUCCESS
+            execution_status=ExecutionStatus.SUCCESS,
         )
         parser = NmapParser()
-        
+
         # When parsing XML containing external entity declarations with resolve_entities=False,
         # it either fails during parsing or keeps the entity reference unexpanded/empty.
         try:
@@ -141,8 +148,7 @@ def test_nmap_parser_xxe_protection():
             host = package.parsed_hosts[0]
             assert host.hostname != "/etc/passwd"
             assert host.hostname is None or host.hostname == ""
-        except (ParserException, Exception):
-            # Raising an exception is also a safe/valid resolution to XXE payloads
+        except Exception:  # noqa: S110 -- raising is also a safe/valid resolution to XXE payloads
             pass
     finally:
         os.unlink(tmp_path)

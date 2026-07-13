@@ -1,6 +1,6 @@
 import logging
 import uuid
-from typing import Optional, Sequence
+from collections.abc import Sequence
 
 from app.audit.context import AuditContext
 from app.core.enums import (
@@ -29,28 +29,28 @@ class ScanService:
         scan_repository: ScanRepository,
         target_repository: TargetRepository,
         audit_service: AuditService,
-        scanner_engine: Optional[IScannerEngine] = None,
+        scanner_engine: IScannerEngine | None = None,
     ):
         self.scan_repository = scan_repository
         self.target_repository = target_repository
         self.scanner_engine = scanner_engine
         self.audit_service = audit_service
 
-    def _audit_best_effort(
+    def _commit_with_audit(
         self,
         event_type: AuditEventType,
         resource_id: uuid.UUID,
         context: AuditContext,
         metadata: dict | None = None,
     ) -> None:
-        """Record a SCAN-category audit event after a scan mutation whose
-        underlying repository already committed synchronously before this
-        call (ScanRepository.create/update/delete commit internally, a
-        pre-existing Module 02 pattern this module does not redesign).
+        """Append a SCAN-category audit event in the same transaction as the
+        already-flushed scan mutation, then commit both atomically.
 
-        Best-effort: the scan mutation has already durably happened, so an
-        audit persistence failure here cannot roll it back. Logged and
-        swallowed rather than raised.
+        Shared transaction (preferred pattern, see backend.md → "Audit
+        event transaction pattern"): if the audit insert or its metadata
+        validation fails, this raises before commit and the entire
+        mutation (repository flush included) rolls back rather than being
+        reported as successful.
         """
         try:
             self.audit_service.append_event(
@@ -67,11 +67,11 @@ class ScanService:
         except Exception:
             self.scan_repository.session.rollback()
             logger.error(
-                "Audit subsystem failed to record a scan event; the "
-                "already-committed scan mutation is unaffected.",
+                "Scan mutation failed to commit; transaction rolled back.",
                 extra={"event_type": event_type.value, "resource_id": str(resource_id)},
                 exc_info=True,
             )
+            raise
 
     def create_scan(
         self, request: CreateScanRequest, audit_context: AuditContext | None = None
@@ -84,15 +84,19 @@ class ScanService:
             raise NotFoundException(f"Target with ID {request.target_id} not found.")
 
         # Check for duplicate running scans (business rule)
-        running_scans = self.scan_repository.get_running_scans_for_target(request.target_id)
+        running_scans = self.scan_repository.get_running_scans_for_target(
+            request.target_id
+        )
         if running_scans:
-            raise ConflictException(f"A scan is already running for target {request.target_id}.")
+            raise ConflictException(
+                f"A scan is already running for target {request.target_id}."
+            )
 
         # Create scan job
         scan_job = ScanJob(
             target_id=target.id,
             scan_type=request.scan_profile,
-            status=ScanStatus.PENDING
+            status=ScanStatus.PENDING,
         )
         scan_job = self.scan_repository.create(scan_job)
 
@@ -102,12 +106,12 @@ class ScanService:
             self.scanner_engine.dispatch_scan(
                 scan_id=scan_job.id,
                 target=target.target,
-                scan_profile=request.scan_profile
+                scan_profile=request.scan_profile,
             )
             scan_job.status = ScanStatus.RUNNING
             self.scan_repository.update(scan_job)
 
-        self._audit_best_effort(
+        self._commit_with_audit(
             event_type=AuditEventType.SCAN_CREATED,
             resource_id=scan_job.id,
             context=audit_context or AuditContext.system(),
@@ -142,7 +146,7 @@ class ScanService:
         scan_type = scan_job.scan_type
         self.scan_repository.delete(scan_job)
 
-        self._audit_best_effort(
+        self._commit_with_audit(
             event_type=AuditEventType.SCAN_DELETED,
             resource_id=scan_id,
             context=audit_context or AuditContext.system(),

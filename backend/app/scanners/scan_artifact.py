@@ -7,9 +7,9 @@ scanner-specific raw output formats.
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from app.core.enums import ExecutionStatus, ScannerType
 
@@ -36,14 +36,12 @@ class ScanArtifact:
     scan_id: uuid.UUID = field(default_factory=uuid.uuid4)
     scanner_type: ScannerType = ScannerType.NMAP
     execution_status: ExecutionStatus = ExecutionStatus.ERROR
-    exit_code: Optional[int] = None
+    exit_code: int | None = None
     execution_duration_seconds: float = 0.0
     stdout: str = ""
     stderr: str = ""
-    output_path: Optional[Path] = None
-    created_at: datetime = field(
-        default_factory=lambda: datetime.now(timezone.utc)
-    )
+    output_path: Path | None = None
+    created_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     metadata: dict[str, Any] = field(default_factory=dict)
 
     @property

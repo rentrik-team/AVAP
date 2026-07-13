@@ -1,12 +1,17 @@
+import contextlib
 import logging
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as ET  # nosec B405 -- XXE-safe, see call-site comment below
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from app.core.enums import ScannerType
 from app.core.exceptions import ParserException
 from app.parsers.base_parser import BaseParser
-from app.parsers.models import AssessmentPackage, ParsedHost, ParsedService, ParsedVulnerability
+from app.parsers.models import (
+    AssessmentPackage,
+    ParsedHost,
+    ParsedService,
+    ParsedVulnerability,
+)
 from app.scanners.scan_artifact import ScanArtifact
 
 logger = logging.getLogger(__name__)
@@ -28,9 +33,11 @@ class OpenVASParser(BaseParser):
         else:
             return "Critical"
 
-    def _parse_port_protocol(self, port_str: Optional[str]) -> tuple[Optional[int], Optional[str]]:
+    def _parse_port_protocol(
+        self, port_str: str | None
+    ) -> tuple[int | None, str | None]:
         """Parse port/protocol string (e.g., '80/tcp', 'general/tcp', '123') into port and protocol.
-        
+
         Returns:
             Tuple of (port, protocol)
         """
@@ -54,10 +61,10 @@ class OpenVASParser(BaseParser):
 
     def parse(self, artifact: ScanArtifact) -> AssessmentPackage:
         """Parse OpenVAS XML output from the given artifact.
-        
+
         Args:
             artifact: The ScanArtifact containing OpenVAS results.
-            
+
         Returns:
             A populated AssessmentPackage.
         """
@@ -70,7 +77,7 @@ class OpenVASParser(BaseParser):
 
         logger.info(
             "Parsing OpenVAS XML output",
-            extra={"scan_id": str(artifact.scan_id), "file_path": str(output_path)}
+            extra={"scan_id": str(artifact.scan_id), "file_path": str(output_path)},
         )
 
         try:
@@ -79,18 +86,18 @@ class OpenVASParser(BaseParser):
             # currently supported CPython versions, rejects entity-expansion
             # ("billion laughs") attacks via its built-in amplification limit.
             # No custom parser configuration or third-party library is required.
-            tree = ET.parse(output_path)
+            tree = ET.parse(output_path)  # noqa: S314 # nosec B314 -- justified above, stdlib ET is XXE-safe
             root = tree.getroot()
         except ET.ParseError as e:
             logger.error(
                 f"XML parse error in OpenVAS output: {e}",
-                extra={"scan_id": str(artifact.scan_id), "file_path": str(output_path)}
+                extra={"scan_id": str(artifact.scan_id), "file_path": str(output_path)},
             )
             raise ParserException(f"Failed to parse OpenVAS XML report: {e}") from e
         except Exception as e:
             logger.exception(
                 f"Unexpected error reading OpenVAS output file: {e}",
-                extra={"scan_id": str(artifact.scan_id)}
+                extra={"scan_id": str(artifact.scan_id)},
             )
             raise ParserException(f"Failed to read OpenVAS output file: {e}") from e
 
@@ -102,7 +109,9 @@ class OpenVASParser(BaseParser):
 
         # Group vulnerabilities by Host -> Port/Protocol -> List of Vulnerabilities
         # Structure: Dict[host_ip, Dict[(port, protocol), List[ParsedVulnerability]]]
-        grouped_data: Dict[str, Dict[tuple[Optional[int], Optional[str]], List[ParsedVulnerability]]] = {}
+        grouped_data: dict[
+            str, dict[tuple[int | None, str | None], list[ParsedVulnerability]]
+        ] = {}
 
         # OpenVAS XML results can be under <results> directly (like in our stub)
         # or nested under <report><results> (real OpenVAS format).
@@ -119,7 +128,7 @@ class OpenVASParser(BaseParser):
                 host_node = result_node.find("host")
                 if host_node is not None:
                     host_ip = host_node.text
-                
+
                 # Fallback to general target if host node is empty
                 if not host_ip:
                     host_ip = fallback_target
@@ -137,22 +146,26 @@ class OpenVASParser(BaseParser):
 
                 # Extract Vulnerability Title
                 name_node = result_node.find("name")
-                v_name = name_node.text if name_node is not None else "Unknown Vulnerability"
+                v_name = (
+                    name_node.text
+                    if name_node is not None and name_node.text
+                    else "Unknown Vulnerability"
+                )
 
                 # Extract Severity Score
                 severity_node = result_node.find("severity")
                 severity_val = 0.0
                 if severity_node is not None and severity_node.text:
-                    try:
+                    with contextlib.suppress(ValueError):
                         severity_val = float(severity_node.text)
-                    except ValueError:
-                        pass
-                
+
                 severity_rating = self._map_cvss_to_severity_rating(severity_val)
 
                 # Extract Description
                 desc_node = result_node.find("description")
-                v_desc = desc_node.text if desc_node is not None else ""
+                v_desc = (
+                    desc_node.text if desc_node is not None and desc_node.text else ""
+                )
 
                 # Extract NVT details (CVE, refs)
                 cve_val = None
@@ -166,7 +179,11 @@ class OpenVASParser(BaseParser):
 
                     # CVE
                     cve_node = nvt_node.find("cve")
-                    if cve_node is not None and cve_node.text and cve_node.text.lower() != "nocve":
+                    if (
+                        cve_node is not None
+                        and cve_node.text
+                        and cve_node.text.lower() != "nocve"
+                    ):
                         cve_val = cve_node.text.strip()
 
                     # References
@@ -186,42 +203,37 @@ class OpenVASParser(BaseParser):
                     cve=cve_val,
                     port=port_val,
                     protocol=protocol,
-                    references=references
+                    references=references,
                 )
 
                 # Map finding to Host -> Service
                 if host_ip not in grouped_data:
                     grouped_data[host_ip] = {}
-                
+
                 service_key = (port_val, protocol)
                 if service_key not in grouped_data[host_ip]:
                     grouped_data[host_ip][service_key] = []
                 grouped_data[host_ip][service_key].append(vuln)
 
         # Build ParsedHost objects from grouped data
-        parsed_hosts: List[ParsedHost] = []
+        parsed_hosts: list[ParsedHost] = []
         for host_ip, service_dict in grouped_data.items():
-            parsed_services: List[ParsedService] = []
+            parsed_services: list[ParsedService] = []
             for (port_val, protocol), vulns in service_dict.items():
                 # We normalize "None" ports to port 0 (standard for general system-level findings)
                 p_id = port_val if port_val is not None else 0
                 proto = protocol if protocol is not None else "tcp"
-                
+
                 parsed_services.append(
                     ParsedService(
                         port=p_id,
                         protocol=proto,
                         service_name="general" if p_id == 0 else "unknown",
-                        vulnerabilities=vulns
+                        vulnerabilities=vulns,
                     )
                 )
-            
-            parsed_hosts.append(
-                ParsedHost(
-                    ipv4=host_ip,
-                    services=parsed_services
-                )
-            )
+
+            parsed_hosts.append(ParsedHost(ipv4=host_ip, services=parsed_services))
 
         execution_metadata = {}
         # Parse version and execution info if available
@@ -232,5 +244,5 @@ class OpenVASParser(BaseParser):
             scan_id=artifact.scan_id,
             scanner_type=ScannerType.OPENVAS,
             parsed_hosts=parsed_hosts,
-            execution_metadata=execution_metadata
+            execution_metadata=execution_metadata,
         )

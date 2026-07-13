@@ -1,5 +1,4 @@
 import logging
-from typing import Optional
 
 from app.core.exceptions import ParserException
 from app.parsers.models import AssessmentPackage
@@ -11,22 +10,22 @@ logger = logging.getLogger(__name__)
 
 class ParserManager:
     """Entry point and coordinator for the Parser Engine.
-    
+
     Validates scan artifacts, selects parsers, and returns unified AssessmentPackages.
     """
 
-    def __init__(self, factory: Optional[ParserFactory] = None):
+    def __init__(self, factory: ParserFactory | None = None):
         self.factory = factory or ParserFactory()
 
     def parse_artifact(self, artifact: ScanArtifact) -> AssessmentPackage:
         """Parse scan artifact and return unified platform AssessmentPackage.
-        
+
         Args:
             artifact: The ScanArtifact representing scanner run results.
-            
+
         Returns:
             The normalized, validated AssessmentPackage.
-            
+
         Raises:
             ParserException if parsing fails, file is missing, or status is invalid.
         """
@@ -36,8 +35,8 @@ class ParserManager:
                 "scan_id": str(artifact.scan_id),
                 "artifact_id": str(artifact.artifact_id),
                 "scanner_type": artifact.scanner_type.value,
-                "status": artifact.execution_status.value
-            }
+                "status": artifact.execution_status.value,
+            },
         )
 
         # 1. Check artifact status
@@ -66,7 +65,10 @@ class ParserManager:
         except Exception as e:
             logger.exception(
                 "Unexpected failure in parser engine execution",
-                extra={"scan_id": str(artifact.scan_id), "scanner": artifact.scanner_type.value}
+                extra={
+                    "scan_id": str(artifact.scan_id),
+                    "scanner": artifact.scanner_type.value,
+                },
             )
             raise ParserException(f"Parser engine internal error: {e}") from e
 
@@ -75,8 +77,8 @@ class ParserManager:
             extra={
                 "scan_id": str(artifact.scan_id),
                 "artifact_id": str(artifact.artifact_id),
-                "hosts_found": len(package.parsed_hosts)
-            }
+                "hosts_found": len(package.parsed_hosts),
+            },
         )
 
         return package

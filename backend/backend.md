@@ -127,24 +127,20 @@ Only services may communicate with multiple components.
 
 ## Audit event transaction pattern (Module 10)
 
-Services that append a security-relevant `AuditEvent` (`app/services/audit_service.py`)
-follow one of two patterns depending on whether the service already owns an
-explicit transaction:
+Every repository — including `TargetRepository` and `ScanRepository` — only
+flushes inside `create`/`update`/`delete`; it never commits. Every service
+owns the transaction boundary for its own business operation and uses a
+single pattern:
 
-- **Shared transaction (preferred):** `AuditService.append_event(...)` (add +
-  flush only, never commit) is called *before* the service's own
+- **Shared transaction:** `AuditService.append_event(...)` (add + flush
+  only, never commit) is called *after* the business mutation has been
+  flushed via the repository but *before* the service's own
   `session.commit()`. If the audit insert or its metadata validation fails,
   the exception propagates into the service's existing rollback path, so the
   business action is never reported as successful without its audit event.
-  Used by `RiskService`, `AIService`, `ReportService`, `InventoryService`.
-- **Best-effort, post-commit:** for repositories that already commit
-  synchronously inside their own `create`/`update`/`delete` methods
-  (`TargetRepository`, `ScanRepository` — a pre-Module-10 pattern not
-  redesigned by this module), the audit event is appended and committed
-  immediately after, in its own try/except. A failure here is logged and
-  swallowed rather than raised, since the business mutation has already
-  durably happened and cannot be rolled back at that point. Used by
-  `TargetService`, `ScanService`.
+  Used by every service that appends audit events: `TargetService`,
+  `ScanService`, `RiskService`, `AIService`, `ReportService`,
+  `InventoryService`.
 
 A FAILURE audit event is always recorded via
 `AuditService.record_failure_safely(...)`, in a fresh transaction *after*
@@ -645,9 +641,10 @@ Before creating a Git commit, the AI agent shall verify:
 
 - Project runs successfully.
 - All tests pass.
-- No linting errors (Ruff/Flake8 if configured).
-- Code formatting is applied (Black).
-- Import ordering is correct (isort).
+- No linting errors (`ruff check`).
+- Code formatting is applied (`ruff format`).
+- Import ordering is correct (`ruff check --select I`).
+- Type checking passes (`mypy app`).
 - No secrets or credentials are present.
 - No temporary or debug code remains.
 - Documentation reflects the implementation.

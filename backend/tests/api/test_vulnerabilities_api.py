@@ -1,4 +1,5 @@
 import uuid
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -13,21 +14,21 @@ def sample_vulnerabilities(db_session):
         severity_score=9.8,
         severity_rating="Critical",
         description="SQL injection vulnerability",
-        cve="CVE-2023-1111"
+        cve="CVE-2023-1111",
     )
     v2 = Vulnerability(
         name="Path Traversal",
         severity_score=7.5,
         severity_rating="High",
         description="Path traversal vulnerability",
-        cve="CVE-2023-2222"
+        cve="CVE-2023-2222",
     )
     v3 = Vulnerability(
         name="Weak Cipher",
         severity_score=3.0,
         severity_rating="Low",
         description="Weak cipher detected",
-        cve=None
+        cve=None,
     )
     db_session.add_all([v1, v2, v3])
     db_session.flush()
@@ -35,6 +36,7 @@ def sample_vulnerabilities(db_session):
 
 
 # --- List ---
+
 
 def test_list_vulnerabilities(client: TestClient, sample_vulnerabilities):
     response = client.get("/api/v1/vulnerabilities/")
@@ -55,7 +57,10 @@ def test_list_vulnerabilities_pagination(client: TestClient, sample_vulnerabilit
 
 # --- Filters ---
 
-def test_list_vulnerabilities_rating_filtering(client: TestClient, sample_vulnerabilities):
+
+def test_list_vulnerabilities_rating_filtering(
+    client: TestClient, sample_vulnerabilities
+):
     response = client.get("/api/v1/vulnerabilities/?severity_rating=high")
     assert response.status_code == 200
     data = response.json()
@@ -72,6 +77,7 @@ def test_list_vulnerabilities_cve_filtering(client: TestClient, sample_vulnerabi
 
 
 # --- Detail ---
+
 
 def test_get_vulnerability_detail(client: TestClient, sample_vulnerabilities):
     vuln_id = sample_vulnerabilities["v1"].id

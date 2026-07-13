@@ -1,9 +1,15 @@
-import pytest
-from pydantic import ValidationError
 import uuid
 
+import pytest
+from pydantic import ValidationError
+
 from app.core.enums import ScannerType
-from app.parsers.models import AssessmentPackage, ParsedHost, ParsedService, ParsedVulnerability
+from app.parsers.models import (
+    AssessmentPackage,
+    ParsedHost,
+    ParsedService,
+    ParsedVulnerability,
+)
 
 
 def test_parsed_vulnerability_validation():
@@ -16,7 +22,7 @@ def test_parsed_vulnerability_validation():
         cve="CVE-2023-9999",
         port=80,
         protocol="tcp",
-        references=["http://example.com/ref"]
+        references=["http://example.com/ref"],
     )
     assert vuln.name == "SQL Injection"
     assert vuln.severity_score == 9.8
@@ -33,9 +39,7 @@ def test_parsed_vulnerability_validation():
 
     # Fallback for invalid severity rating
     vuln_bad_rating = ParsedVulnerability(
-        name="Weak SSL",
-        severity_score=4.0,
-        severity_rating="UNRECOGNIZED_RATING"
+        name="Weak SSL", severity_score=4.0, severity_rating="UNRECOGNIZED_RATING"
     )
     assert vuln_bad_rating.severity_rating == "None"
 
@@ -48,7 +52,7 @@ def test_parsed_service_validation():
         service_name="https",
         product="nginx",
         version="1.18.0",
-        vulnerabilities=[]
+        vulnerabilities=[],
     )
     assert service.port == 443
     assert service.protocol == "tcp"
@@ -67,11 +71,9 @@ def test_assessment_package_validation():
             ParsedHost(
                 ipv4="192.168.1.1",
                 hostname="router.local",
-                services=[
-                    ParsedService(port=80, protocol="tcp")
-                ]
+                services=[ParsedService(port=80, protocol="tcp")],
             )
-        ]
+        ],
     )
     assert package.scan_id == scan_id
     assert package.scanner_type == ScannerType.NMAP

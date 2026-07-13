@@ -3,10 +3,11 @@ from typing import Any
 
 class AppException(Exception):
     """Base exception for all application-specific errors.
-    
+
     Ensures consistent error handling across the platform without exposing
     internal implementation details to the client.
     """
+
     def __init__(
         self,
         message: str,
@@ -23,6 +24,7 @@ class AppException(Exception):
 
 class ValidationException(AppException):
     """Raised when business validation rules fail."""
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -34,6 +36,7 @@ class ValidationException(AppException):
 
 class NotFoundException(AppException):
     """Raised when a requested resource is not found."""
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -45,6 +48,7 @@ class NotFoundException(AppException):
 
 class DuplicateException(AppException):
     """Raised when a resource already exists and duplicates are not allowed."""
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -56,6 +60,7 @@ class DuplicateException(AppException):
 
 class InternalException(AppException):
     """Raised for unexpected internal errors that should be sanitized for the client."""
+
     def __init__(self, message: str = "An unexpected error occurred."):
         super().__init__(
             message=message,
@@ -66,6 +71,7 @@ class InternalException(AppException):
 
 class ConflictException(AppException):
     """Raised when a request conflicts with current resource state."""
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -77,6 +83,7 @@ class ConflictException(AppException):
 
 class ScannerExecutionException(AppException):
     """Raised when a scanner execution fails."""
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -88,6 +95,7 @@ class ScannerExecutionException(AppException):
 
 class ScannerTimeoutException(AppException):
     """Raised when a scanner execution exceeds configured timeout."""
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -99,6 +107,7 @@ class ScannerTimeoutException(AppException):
 
 class ParserException(AppException):
     """Raised when a scan artifact parsing or validation fails."""
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -110,6 +119,7 @@ class ParserException(AppException):
 
 class UnsupportedProviderException(AppException):
     """Raised when the configured AI provider is not implemented."""
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -121,6 +131,7 @@ class UnsupportedProviderException(AppException):
 
 class AIProviderConfigurationException(AppException):
     """Raised when a supported AI provider is missing required configuration."""
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -134,6 +145,7 @@ class AIProviderException(AppException):
     """Raised when an AI provider request fails at the transport level
     (network failure, timeout, non-success response, malformed or empty output).
     """
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -147,6 +159,7 @@ class InvalidAIResponseException(AppException):
     """Raised when an AI provider's output does not satisfy AVAP's
     structured remediation response contract.
     """
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -160,6 +173,7 @@ class InsufficientContextException(AppException):
     """Raised when the available assessment context is not sufficient to
     generate an AI remediation recommendation.
     """
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -173,6 +187,7 @@ class InsufficientReportDataException(AppException):
     """Raised when the authoritative data required to generate a report is
     not yet available (e.g. no deterministic risk assessment for the scan).
     """
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -184,6 +199,7 @@ class InsufficientReportDataException(AppException):
 
 class ReportRenderingException(AppException):
     """Raised when PDF rendering fails or produces an invalid document."""
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -197,6 +213,7 @@ class ReportStorageException(AppException):
     """Raised when a generated report cannot be safely stored or retrieved
     from the report file storage root.
     """
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,
@@ -213,6 +230,7 @@ class UnsafeAuditMetadataException(AppException):
     server-generated, so this indicates an integration defect, not
     untrusted client input; persistence is refused rather than sanitized.
     """
+
     def __init__(self, message: str, details: dict[str, Any] | None = None):
         super().__init__(
             message=message,

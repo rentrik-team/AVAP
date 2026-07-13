@@ -167,9 +167,12 @@ def test_generate_report_renderer_failure_leaves_no_partial_file(db_session, tmp
     scan_job = _seed_scan_with_findings(db_session)
     service = _service(db_session, tmp_path)
 
-    with patch(
-        "app.services.report_service.render_pdf", side_effect=RuntimeError("boom")
-    ), pytest.raises(ReportRenderingException):
+    with (
+        patch(
+            "app.services.report_service.render_pdf", side_effect=RuntimeError("boom")
+        ),
+        pytest.raises(ReportRenderingException),
+    ):
         service.generate_report(scan_job.id)
 
     assert list(tmp_path.glob("*.pdf")) == []
@@ -202,9 +205,12 @@ def test_previous_valid_report_survives_failed_regeneration(db_session, tmp_path
     baseline_path = tmp_path / baseline.file_name
     assert baseline_path.exists()
 
-    with patch(
-        "app.services.report_service.render_pdf", side_effect=RuntimeError("boom")
-    ), pytest.raises(ReportRenderingException):
+    with (
+        patch(
+            "app.services.report_service.render_pdf", side_effect=RuntimeError("boom")
+        ),
+        pytest.raises(ReportRenderingException),
+    ):
         service.generate_report(scan_job.id)
 
     assert baseline_path.exists()
@@ -219,9 +225,12 @@ def test_metadata_persistence_failure_removes_orphan_file(db_session, tmp_path):
     scan_job = _seed_scan_with_findings(db_session)
     service = _service(db_session, tmp_path)
 
-    with patch.object(
-        service.report_repository, "create", side_effect=RuntimeError("db down")
-    ), pytest.raises(RuntimeError):
+    with (
+        patch.object(
+            service.report_repository, "create", side_effect=RuntimeError("db down")
+        ),
+        pytest.raises(RuntimeError),
+    ):
         service.generate_report(scan_job.id)
 
     assert list(tmp_path.glob("*.pdf")) == []

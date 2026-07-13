@@ -537,7 +537,16 @@ Required files
 pyproject.toml
 
 README.md
+
+.pre-commit-config.yaml
+
+.editorconfig
 ```
+
+Added during the Backend Hardening & Stabilization phase: `.pre-commit-config.yaml`
+(ruff lint/format + mypy, run from `backend/`) and `.editorconfig`. Ruff-managed
+lint/format/import-sort configuration and mypy configuration live in `pyproject.toml`
+under `[tool.ruff]` and `[tool.mypy]`.
 
 Future
 
@@ -547,8 +556,6 @@ Dockerfile
 docker-compose.yml
 
 Makefile
-
-pre-commit-config.yaml
 ```
 
 ---

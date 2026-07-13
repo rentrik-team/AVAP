@@ -95,22 +95,16 @@ def test_get_all_filters_by_scan(repository, scan_job, db_session):
 def test_get_all_lists_every_report_without_filter(repository, scan_job):
     repository.create(_report(scan_job.id, generated_at=datetime.now(UTC)))
     repository.create(
-        _report(
-            scan_job.id, generated_at=datetime.now(UTC) + timedelta(seconds=1)
-        )
+        _report(scan_job.id, generated_at=datetime.now(UTC) + timedelta(seconds=1))
     )
     items, total = repository.get_all()
     assert total == 2
 
 
 def test_get_latest_by_scan_returns_most_recent(repository, scan_job):
-    older = repository.create(
-        _report(scan_job.id, generated_at=datetime.now(UTC))
-    )
+    older = repository.create(_report(scan_job.id, generated_at=datetime.now(UTC)))
     newer = repository.create(
-        _report(
-            scan_job.id, generated_at=datetime.now(UTC) + timedelta(seconds=5)
-        )
+        _report(scan_job.id, generated_at=datetime.now(UTC) + timedelta(seconds=5))
     )
     latest = repository.get_latest_by_scan(scan_job.id)
     assert latest.id == newer.id
@@ -136,13 +130,9 @@ def test_duplicate_scan_and_generated_at_rejected(db_session, scan_job):
 def test_repeated_generation_creates_new_immutable_row(repository, scan_job):
     """Unlike Module 06/07's upsert pattern, reports are never updated in
     place: each successful generation is a new historical row."""
-    first = repository.create(
-        _report(scan_job.id, generated_at=datetime.now(UTC))
-    )
+    first = repository.create(_report(scan_job.id, generated_at=datetime.now(UTC)))
     second = repository.create(
-        _report(
-            scan_job.id, generated_at=datetime.now(UTC) + timedelta(seconds=1)
-        )
+        _report(scan_job.id, generated_at=datetime.now(UTC) + timedelta(seconds=1))
     )
     assert first.id != second.id
 

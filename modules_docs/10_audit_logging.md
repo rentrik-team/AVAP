@@ -475,21 +475,20 @@ the full description. Summary:
 
 * **SUCCESS events** are appended (flush-only) inside the same transaction
   as the business action they document, before that transaction's own
-  commit, for every service that owns an explicit transaction (`RiskService`,
-  `AIService`, `ReportService`, `InventoryService`). An audit failure there
-  rolls back the business action too — no false SUCCESS is possible.
+  commit, for every service that owns an explicit transaction
+  (`TargetService`, `ScanService`, `RiskService`, `AIService`,
+  `ReportService`, `InventoryService`). An audit failure there rolls back
+  the business action too — no false SUCCESS is possible.
 * **FAILURE events** are recorded via `AuditService.record_failure_safely()`
   in a fresh transaction after the business rollback, and this method never
   raises — an audit-subsystem failure while recording a failure event is
   logged and swallowed, never replacing the original business exception.
-* **`TargetService`/`ScanService`** are a disclosed exception: their
-  repositories (`TargetRepository`, `ScanRepository`) commit synchronously
-  inside `create`/`update`/`delete` — a pre-Module-10 pattern not redesigned
-  here. Their audit events are therefore best-effort, appended immediately
-  after the already-committed mutation; an audit failure there is logged
-  and swallowed, since the business action cannot be rolled back at that
-  point. This is a real, intentional trust-boundary limitation, not a
-  falsely-claimed fail-closed guarantee.
+* Every repository, including `TargetRepository` and `ScanRepository`,
+  only flushes inside `create`/`update`/`delete` — none commits. This was
+  fixed during the Backend Hardening & Stabilization phase, which removed
+  `TargetService`/`ScanService`'s previous best-effort, post-commit audit
+  exception; they now use the same shared-transaction guarantee as every
+  other integrated service.
 
 # Metadata Security Policy
 
@@ -641,16 +640,15 @@ persistence, `record_failure_safely` never raises and persists durably
 even when metadata would otherwise be unsafe, retrieval/empty-state
 behavior.
 
-## Transaction Semantics Tests (`tests/services/test_audit_transaction_semantics.py`, 16 tests)
+## Transaction Semantics Tests (`tests/services/test_audit_transaction_semantics.py`, 19 tests)
 
 Per integrated service (Target/Scan/Inventory/Risk/AI/Report): SUCCESS
 event persisted with the correct resource ID; an audit persistence failure
 during a shared-transaction SUCCESS path rolls back the business data
-(verified via actual row counts, not mocks); FAILURE events survive the
-business rollback; TargetService's documented best-effort/post-commit
-exception verified explicitly; no duplicate event from AIService's
-idempotent short-circuit path (exactly one event per call, not one per
-provider invocation).
+(verified via actual row counts, not mocks) for every integrated service,
+including Target/Scan; FAILURE events survive the business rollback; no
+duplicate event from AIService's idempotent short-circuit path (exactly
+one event per call, not one per provider invocation).
 
 ## API Tests (`tests/api/test_audit_api.py`, 18 tests)
 

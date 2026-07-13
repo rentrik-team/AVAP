@@ -1,10 +1,11 @@
-import pytest
-from unittest.mock import MagicMock, patch
 import subprocess
 import uuid
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
-from app.core.enums import ScannerType, ExecutionStatus
+import pytest
+
+from app.core.enums import ExecutionStatus, ScannerType
 from app.core.exceptions import ScannerExecutionException, ScannerTimeoutException
 from app.scanners.scanner_executor import ScannerExecutor
 
@@ -17,16 +18,14 @@ def test_scanner_executor_validation():
         executor.run_scanner(
             scanner_type=ScannerType.NMAP,
             cmd_args=["ping", "127.0.0.1"],
-            scan_id=uuid.uuid4()
+            scan_id=uuid.uuid4(),
         )
     assert "Unauthorized executable" in str(exc.value)
 
     # Reject empty command list
     with pytest.raises(ScannerExecutionException):
         executor.run_scanner(
-            scanner_type=ScannerType.NMAP,
-            cmd_args=[],
-            scan_id=uuid.uuid4()
+            scanner_type=ScannerType.NMAP, cmd_args=[], scan_id=uuid.uuid4()
         )
 
 
@@ -47,7 +46,7 @@ def test_scanner_executor_success(mock_popen):
         cmd_args=["nmap", "127.0.0.1"],
         scan_id=scan_id,
         output_path=output_path,
-        timeout=10
+        timeout=10,
     )
 
     assert artifact.scan_id == scan_id
@@ -72,9 +71,7 @@ def test_scanner_executor_failure_exit_code(mock_popen):
     scan_id = uuid.uuid4()
 
     artifact = executor.run_scanner(
-        scanner_type=ScannerType.NMAP,
-        cmd_args=["nmap", "127.0.0.1"],
-        scan_id=scan_id
+        scanner_type=ScannerType.NMAP, cmd_args=["nmap", "127.0.0.1"], scan_id=scan_id
     )
 
     assert artifact.execution_status == ExecutionStatus.FAILED
@@ -88,7 +85,7 @@ def test_scanner_executor_timeout(mock_popen):
     mock_process = MagicMock()
     mock_process.communicate.side_effect = [
         subprocess.TimeoutExpired(cmd="nmap", timeout=5),
-        ("timeout partial output", "timeout partial err")
+        ("timeout partial output", "timeout partial err"),
     ]
     mock_process.returncode = -9  # typical killed process code
     mock_popen.return_value = mock_process
@@ -101,8 +98,8 @@ def test_scanner_executor_timeout(mock_popen):
             scanner_type=ScannerType.NMAP,
             cmd_args=["nmap", "127.0.0.1"],
             scan_id=scan_id,
-            timeout=5
+            timeout=5,
         )
     assert "exceeded timeout of 5 seconds" in str(exc.value)
-    
+
     mock_process.kill.assert_called_once()

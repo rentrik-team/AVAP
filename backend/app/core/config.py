@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
     postgres_db: str = "avap"
     postgres_user: str = "avap_user"
-    postgres_password: str = "changeme"
+    postgres_password: str = "changeme"  # noqa: S105 -- dev placeholder, matches .env.example
 
     # Scanner
     nmap_executable: str = "/usr/bin/nmap"
@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     openvas_host: str = "localhost"
     openvas_port: int = 9390
     openvas_username: str = "admin"
-    openvas_password: str = "changeme"
+    openvas_password: str = "changeme"  # noqa: S105 -- dev placeholder, matches .env.example
 
     # AI Providers
     ai_provider: str = "openrouter"
@@ -88,8 +88,7 @@ class Settings(BaseSettings):
         lower_value = value.lower()
         if lower_value not in allowed:
             raise ValueError(
-                f"Invalid environment: {value}. "
-                f"Allowed: {', '.join(sorted(allowed))}"
+                f"Invalid environment: {value}. Allowed: {', '.join(sorted(allowed))}"
             )
         return lower_value
 

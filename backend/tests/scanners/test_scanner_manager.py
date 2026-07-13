@@ -1,11 +1,12 @@
-import pytest
-from unittest.mock import MagicMock
 import uuid
+from unittest.mock import MagicMock
+
+import pytest
 
 from app.core.enums import ScannerType, ScanProfile
 from app.core.exceptions import ValidationException
-from app.scanners.scanner_manager import ScannerManager
 from app.scanners.scan_artifact import ScanArtifact
+from app.scanners.scanner_manager import ScannerManager
 
 
 def test_scanner_manager_profile_parsing():
@@ -35,7 +36,7 @@ def test_scanner_manager_dispatch_scan():
     mock_adapter.execute.return_value = mock_artifact
 
     manager = ScannerManager(factory=mock_factory, validator=mock_validator)
-    
+
     scan_id = uuid.uuid4()
     target = "192.168.1.1"
 
@@ -47,6 +48,4 @@ def test_scanner_manager_dispatch_scan():
         target, ScannerType.NMAP, ScanProfile.DISCOVERY
     )
     mock_factory.get_adapter.assert_called_once_with(ScannerType.NMAP)
-    mock_adapter.execute.assert_called_once_with(
-        scan_id, target, ScanProfile.DISCOVERY
-    )
+    mock_adapter.execute.assert_called_once_with(scan_id, target, ScanProfile.DISCOVERY)

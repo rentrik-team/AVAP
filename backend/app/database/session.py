@@ -1,4 +1,4 @@
-from typing import Generator
+from collections.abc import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -21,7 +21,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 def get_db() -> Generator[Session, None, None]:
     """Dependency generator for database sessions.
-    
+
     Yields a SQLAlchemy Session, ensuring it is closed after the request completes.
     Used for FastAPI dependency injection.
     """

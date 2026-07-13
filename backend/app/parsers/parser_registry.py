@@ -1,6 +1,5 @@
 import logging
 import threading
-from typing import Dict
 
 from app.core.enums import ScannerType
 from app.core.exceptions import ParserException
@@ -11,17 +10,17 @@ logger = logging.getLogger(__name__)
 
 class ParserRegistry:
     """Thread-safe registry for scanner parsers.
-    
+
     Allows dynamic registration and lookup of parsers by ScannerType.
     """
 
     def __init__(self):
-        self._parsers: Dict[ScannerType, BaseParser] = {}
+        self._parsers: dict[ScannerType, BaseParser] = {}
         self._lock = threading.Lock()
 
     def register(self, scanner_type: ScannerType, parser: BaseParser) -> None:
         """Register a parser for a given ScannerType.
-        
+
         Args:
             scanner_type: The ScannerType key.
             parser: The BaseParser instance.
@@ -36,13 +35,13 @@ class ParserRegistry:
 
     def get_parser(self, scanner_type: ScannerType) -> BaseParser:
         """Retrieve the parser for a given ScannerType.
-        
+
         Args:
             scanner_type: The ScannerType key.
-            
+
         Returns:
             The registered BaseParser.
-            
+
         Raises:
             ParserException if no parser is registered for that scanner type.
         """

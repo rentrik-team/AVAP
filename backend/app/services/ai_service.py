@@ -18,6 +18,7 @@ from app.core.enums import (
 from app.core.exceptions import (
     AIProviderException,
     InsufficientContextException,
+    InternalException,
     InvalidAIResponseException,
     NotFoundException,
 )
@@ -116,6 +117,10 @@ class AIService:
         """
         context = audit_context or AuditContext.system()
         risk_assessment = self._get_vulnerability_risk_assessment(risk_assessment_id)
+        if risk_assessment.vulnerability_id is None:
+            raise InternalException(
+                "VULNERABILITY-scoped risk assessment unexpectedly has no vulnerability_id."
+            )
 
         vulnerability = self.vulnerability_repository.get_by_id(
             risk_assessment.vulnerability_id

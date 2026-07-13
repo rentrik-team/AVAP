@@ -18,25 +18,18 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0.0,<9.0.0",
-    "pytest-asyncio>=0.24.0,<1.0.0",
-    "black>=24.0.0",
-    "isort>=5.13.0",
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.0.0",
     "ruff>=0.8.0",
+    "mypy>=1.14.0",
+    "bandit>=1.8.0",
+    "pip-audit>=2.7.0",
+    "pre-commit>=4.0.0",
 ]
 
 [build-system]
 requires = ["setuptools>=75.0.0"]
 build-backend = "setuptools.build_meta"
-
-[tool.black]
-line-length = 88
-target-version = ["py312"]
-
-[tool.isort]
-profile = "black"
-line_length = 88
-known_first_party = ["app"]
 
 [tool.ruff]
 line-length = 88
@@ -44,10 +37,40 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "S", "B", "A", "C4", "SIM"]
-ignore = ["S101"]
+ignore = [
+    "S101",  # assert is required in pytest
+    # FastAPI's dependency-injection idiom is `param: T = Depends(...)`;
+    # this is the framework-mandated pattern (development_standards.md
+    # "Dependency Injection"), not a mutable-default-argument bug.
+    "B008",
+    # str+Enum mixins back every persisted enum column, the audit event
+    # taxonomy, and Pydantic (de)serialization. Switching to enum.StrEnum
+    # is a behavior-risking change to a frozen/high-scrutiny surface for a
+    # purely cosmetic gain; not undertaken without a deliberate decision.
+    "UP042",
+    # AppException is the established base for the whole custom exception
+    # hierarchy (development_standards.md "Exception Naming" documents the
+    # *subclass* suffix convention, e.g. TargetNotFoundException); renaming
+    # the base class itself is a wide, purely cosmetic rename.
+    "N818",
+    # SuccessResponse[T]/ErrorResponse are used by every route in the API;
+    # migrating Generic[T] to PEP 695 syntax is a cosmetic modernization
+    # with no behavior change, deferred to avoid touching this surface
+    # without a dedicated review.
+    "UP046",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.12"
+files = ["app"]
+plugins = ["pydantic.mypy"]
+warn_unused_ignores = true
+warn_redundant_casts = true
+check_untyped_defs = true
+ignore_missing_imports = true

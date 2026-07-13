@@ -1,4 +1,5 @@
 import pytest
+
 from app.core.enums import ScannerType
 from app.core.exceptions import ScannerExecutionException
 from app.scanners.adapters.base_adapter import BaseScannerAdapter

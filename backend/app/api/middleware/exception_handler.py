@@ -1,5 +1,4 @@
 import logging
-from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -16,13 +15,21 @@ def setup_exception_handlers(app: FastAPI) -> None:
     """Register custom exception handlers with the FastAPI application."""
 
     @app.exception_handler(AppException)
-    async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+    async def app_exception_handler(
+        request: Request, exc: AppException
+    ) -> JSONResponse:
         """Handle custom application exceptions."""
         logger.info(
             f"Application Exception: {exc.error_code} - {exc.message}",
-            extra={"context": {"url": str(request.url), "method": request.method, "details": exc.details}}
+            extra={
+                "context": {
+                    "url": str(request.url),
+                    "method": request.method,
+                    "details": exc.details,
+                }
+            },
         )
-        
+
         error_resp = ErrorResponse(
             error=ErrorDetails(
                 code=exc.error_code,
@@ -42,9 +49,15 @@ def setup_exception_handlers(app: FastAPI) -> None:
         """Handle FastAPI validation exceptions (e.g., bad Pydantic payloads)."""
         logger.info(
             "Request Validation Error",
-            extra={"context": {"url": str(request.url), "method": request.method, "errors": exc.errors()}}
+            extra={
+                "context": {
+                    "url": str(request.url),
+                    "method": request.method,
+                    "errors": exc.errors(),
+                }
+            },
         )
-        
+
         error_resp = ErrorResponse(
             error=ErrorDetails(
                 code="VALIDATION_ERROR",
@@ -74,17 +87,19 @@ def setup_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(Exception)
-    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    async def unhandled_exception_handler(
+        request: Request, exc: Exception
+    ) -> JSONResponse:
         """Handle unexpected exceptions.
-        
+
         Logs the full exception internally, but returns a sanitized 500 response
         to the client to prevent leaking implementation details.
         """
         logger.exception(
             "Unhandled Exception",
-            extra={"context": {"url": str(request.url), "method": request.method}}
+            extra={"context": {"url": str(request.url), "method": request.method}},
         )
-        
+
         error_resp = ErrorResponse(
             error=ErrorDetails(
                 code="INTERNAL_SERVER_ERROR",
