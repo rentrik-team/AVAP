@@ -5,7 +5,14 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.enums import ScanStatus
+from app.audit.context import AuditContext
+from app.core.enums import (
+    AuditEventCategory,
+    AuditEventType,
+    AuditOutcome,
+    AuditResourceType,
+    ScanStatus,
+)
 from app.core.exceptions import NotFoundException, ParserException
 from app.models.asset import Asset
 from app.models.service import NetworkService
@@ -15,6 +22,7 @@ from app.repositories.asset_repository import AssetRepository
 from app.repositories.vulnerability_repository import VulnerabilityRepository
 from app.repositories.scan_repository import ScanRepository
 from app.parsers.models import AssessmentPackage, ParsedHost, ParsedService, ParsedVulnerability
+from app.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
 
@@ -27,12 +35,14 @@ class InventoryService:
         session: Session,
         asset_repository: AssetRepository,
         vulnerability_repository: VulnerabilityRepository,
-        scan_repository: ScanRepository
+        scan_repository: ScanRepository,
+        audit_service: AuditService,
     ):
         self.session = session
         self.asset_repository = asset_repository
         self.vulnerability_repository = vulnerability_repository
         self.scan_repository = scan_repository
+        self.audit_service = audit_service
 
     def _upsert_asset(self, host: ParsedHost) -> Asset:
         """Upsert an asset based on IPv4 address."""
@@ -152,8 +162,12 @@ class InventoryService:
             self.session.add(finding)
             self.session.flush()
 
-    def process_assessment_package(self, package: AssessmentPackage) -> None:
+    def process_assessment_package(
+        self, package: AssessmentPackage, audit_context: AuditContext | None = None
+    ) -> None:
         """Process assessment package inside an ACID transaction."""
+        context = audit_context or AuditContext.system()
+
         # 1. Resolve related ScanJob
         scan_job = self.scan_repository.get_by_id(package.scan_id)
         if not scan_job:
@@ -213,6 +227,26 @@ class InventoryService:
             self.session.add(scan_job)
             self.session.flush()
 
+            # Record the audit event in the same transaction as the
+            # inventory data and the scan status transition: if metadata
+            # validation or the audit insert itself fails, this raises and
+            # the whole business transaction (including the flushed
+            # assets/services/vulnerabilities/findings above) rolls back
+            # rather than being reported as successful.
+            self.audit_service.append_event(
+                event_type=AuditEventType.INVENTORY_PROCESSED,
+                category=AuditEventCategory.INVENTORY,
+                outcome=AuditOutcome.SUCCESS,
+                context=context,
+                resource_type=AuditResourceType.SCAN,
+                resource_id=scan_job.id,
+                scan_id=scan_job.id,
+                metadata={
+                    "scanner_type": package.scanner_type.value,
+                    "host_count": len(package.parsed_hosts),
+                },
+            )
+
             # 7. Commit transaction
             self.session.commit()
             logger.info("Assessment package processed successfully", extra={"scan_id": str(package.scan_id)})
@@ -226,7 +260,10 @@ class InventoryService:
             )
             self.session.rollback()
 
-            # Transition ScanJob to FAILED in a separate clean transaction
+            # Transition ScanJob to FAILED in its own clean transaction,
+            # independent of audit availability: an audit persistence
+            # failure must never undo this business-critical status
+            # transition.
             try:
                 # Fetch scan job again to reload state
                 failed_job = self.scan_repository.get_by_id(package.scan_id)
@@ -236,11 +273,28 @@ class InventoryService:
                     failed_job.completed_at = datetime.now(timezone.utc)
                     self.session.add(failed_job)
                     self.session.commit()
-            except Exception as rollback_err:
+            except Exception:
+                self.session.rollback()
                 logger.exception(
                     f"Failed to transition scan job {package.scan_id} to FAILED status",
                     extra={"scan_id": str(package.scan_id)}
                 )
+
+            # Best-effort, independent of the transition above: never
+            # raises, and never masks the original exception below.
+            self.audit_service.record_failure_safely(
+                session=self.session,
+                event_type=AuditEventType.INVENTORY_PROCESSING_FAILED,
+                category=AuditEventCategory.INVENTORY,
+                context=context,
+                resource_type=AuditResourceType.SCAN,
+                resource_id=package.scan_id,
+                scan_id=package.scan_id,
+                metadata={
+                    "scanner_type": package.scanner_type.value,
+                    "failure_category": type(e).__name__,
+                },
+            )
 
             # Preserve and raise the original exception context
             raise e

@@ -13,9 +13,11 @@ from app.models.service import NetworkService
 from app.models.target import Target
 from app.models.vulnerability import Vulnerability
 from app.repositories.asset_repository import AssetRepository
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.risk_repository import RiskRepository
 from app.repositories.scan_finding_repository import ScanFindingRepository
 from app.repositories.scan_repository import ScanRepository
+from app.services.audit_service import AuditService
 from app.services.risk_service import RiskService
 
 
@@ -43,6 +45,7 @@ def risk_service(db_session):
         scan_repository=ScanRepository(db_session),
         asset_repository=AssetRepository(db_session),
         scan_finding_repository=ScanFindingRepository(db_session),
+        audit_service=AuditService(AuditRepository(db_session)),
     )
 
 

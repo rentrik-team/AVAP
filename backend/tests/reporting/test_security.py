@@ -15,12 +15,14 @@ from app.models.scan_job import ScanJob
 from app.models.target import Target
 from app.repositories.ai_recommendation_repository import AIRecommendationRepository
 from app.repositories.asset_repository import AssetRepository
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.network_service_repository import NetworkServiceRepository
 from app.repositories.report_repository import ReportRepository
 from app.repositories.risk_repository import RiskRepository
 from app.repositories.scan_finding_repository import ScanFindingRepository
 from app.repositories.scan_repository import ScanRepository
 from app.repositories.vulnerability_repository import VulnerabilityRepository
+from app.services.audit_service import AuditService
 from app.services.report_service import ReportService
 
 
@@ -35,6 +37,7 @@ def _service(db_session, tmp_path: Path) -> ReportService:
         network_service_repository=NetworkServiceRepository(db_session),
         scan_finding_repository=ScanFindingRepository(db_session),
         ai_recommendation_repository=AIRecommendationRepository(db_session),
+        audit_service=AuditService(AuditRepository(db_session)),
         settings=Settings(_env_file=None, report_output_directory=str(tmp_path)),
     )
 

@@ -14,10 +14,12 @@ from app.models.scan_job import ScanJob
 from app.models.target import Target
 from app.models.vulnerability import Vulnerability
 from app.repositories.ai_recommendation_repository import AIRecommendationRepository
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.network_service_repository import NetworkServiceRepository
 from app.repositories.risk_repository import RiskRepository
 from app.repositories.vulnerability_repository import VulnerabilityRepository
 from app.services.ai_service import AIService
+from app.services.audit_service import AuditService
 from tests.services.test_ai_service import FakeAIManager
 
 
@@ -30,6 +32,7 @@ def override_ai_service(db_session):
             risk_repository=RiskRepository(db_session),
             vulnerability_repository=VulnerabilityRepository(db_session),
             network_service_repository=NetworkServiceRepository(db_session),
+            audit_service=AuditService(AuditRepository(db_session)),
             ai_manager=FakeAIManager(),
         )
 
@@ -173,6 +176,7 @@ def test_generate_recommendation_provider_failure_sanitized(
             risk_repository=RiskRepository(db_session),
             vulnerability_repository=VulnerabilityRepository(db_session),
             network_service_repository=NetworkServiceRepository(db_session),
+            audit_service=AuditService(AuditRepository(db_session)),
             ai_manager=FakeAIManager(
                 exc=AIProviderException("AI provider returned an error status: 401.")
             ),
@@ -201,6 +205,7 @@ def test_generate_recommendation_invalid_output_sanitized(
             risk_repository=RiskRepository(db_session),
             vulnerability_repository=VulnerabilityRepository(db_session),
             network_service_repository=NetworkServiceRepository(db_session),
+            audit_service=AuditService(AuditRepository(db_session)),
             ai_manager=FakeAIManager(content="not valid json"),
         )
 

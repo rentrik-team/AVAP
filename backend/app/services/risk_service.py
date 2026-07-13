@@ -5,7 +5,15 @@ from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session
 
-from app.core.enums import RiskLevel, RiskScope
+from app.audit.context import AuditContext
+from app.core.enums import (
+    AuditEventCategory,
+    AuditEventType,
+    AuditOutcome,
+    AuditResourceType,
+    RiskLevel,
+    RiskScope,
+)
 from app.core.exceptions import NotFoundException
 from app.models.risk_assessment import RiskAssessment
 from app.repositories.asset_repository import AssetRepository
@@ -15,6 +23,7 @@ from app.repositories.scan_repository import ScanRepository
 from app.risk_engine import rules
 from app.risk_engine.aggregator import aggregate
 from app.risk_engine.coordinator import calculate_scan_risk
+from app.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +43,18 @@ class RiskService:
         scan_repository: ScanRepository,
         asset_repository: AssetRepository,
         scan_finding_repository: ScanFindingRepository,
+        audit_service: AuditService,
     ):
         self.session = session
         self.risk_repository = risk_repository
         self.scan_repository = scan_repository
         self.asset_repository = asset_repository
         self.scan_finding_repository = scan_finding_repository
+        self.audit_service = audit_service
 
-    def calculate_risk_for_scan(self, scan_id: uuid.UUID) -> RiskAssessment:
+    def calculate_risk_for_scan(
+        self, scan_id: uuid.UUID, audit_context: AuditContext | None = None
+    ) -> RiskAssessment:
         """Calculate and persist deterministic risk for one scan.
 
         Recalculates vulnerability, asset, scan, and assessment-level risk
@@ -49,6 +62,7 @@ class RiskService:
         inputs produce identical persisted results, and each scope/entity
         combination is updated in place rather than duplicated.
         """
+        context = audit_context or AuditContext.system()
         scan_job = self.scan_repository.get_by_id(scan_id)
         if not scan_job:
             raise NotFoundException(f"Scan job with ID {scan_id} not found.")
@@ -108,6 +122,25 @@ class RiskService:
                 supporting_factors=assessment_result.supporting_factors,
             )
 
+            # Shared transaction: if metadata validation or the audit
+            # insert itself fails, this raises before commit and the
+            # entire recalculation (including scan_record above) rolls
+            # back rather than being reported as successful.
+            self.audit_service.append_event(
+                event_type=AuditEventType.RISK_CALCULATION_COMPLETED,
+                category=AuditEventCategory.RISK,
+                outcome=AuditOutcome.SUCCESS,
+                context=context,
+                resource_type=AuditResourceType.RISK_ASSESSMENT,
+                resource_id=scan_record.id,
+                scan_id=scan_id,
+                metadata={
+                    "risk_score": scan_result.score,
+                    "risk_level": scan_result.level.value,
+                    "calculation_version": rules.CALCULATION_VERSION,
+                },
+            )
+
             self.session.commit()
             logger.info(
                 "Risk calculation completed",
@@ -129,6 +162,20 @@ class RiskService:
                 exc_info=True,
             )
             self.session.rollback()
+
+            # Record the failure event in a fresh transaction so it survives
+            # the rollback above; never raised in place of the original
+            # exception.
+            self.audit_service.record_failure_safely(
+                session=self.session,
+                event_type=AuditEventType.RISK_CALCULATION_FAILED,
+                category=AuditEventCategory.RISK,
+                context=context,
+                resource_type=AuditResourceType.SCAN,
+                resource_id=scan_id,
+                scan_id=scan_id,
+                metadata={"failure_category": type(exc).__name__},
+            )
             raise
 
     def get_risk_assessments(

@@ -107,10 +107,12 @@ def test_recommendation_output_contract_has_no_risk_fields():
 def test_generating_recommendation_does_not_modify_risk_assessment(db_session):
     """Generating an AI recommendation must never write to the RiskAssessment row."""
     from app.repositories.ai_recommendation_repository import AIRecommendationRepository
+    from app.repositories.audit_repository import AuditRepository
     from app.repositories.network_service_repository import NetworkServiceRepository
     from app.repositories.risk_repository import RiskRepository
     from app.repositories.vulnerability_repository import VulnerabilityRepository
     from app.services.ai_service import AIService
+    from app.services.audit_service import AuditService
     from tests.services.test_ai_service import FakeAIManager
 
     target = Target(target="10.60.0.1", target_type=TargetType.IPV4)
@@ -153,6 +155,7 @@ def test_generating_recommendation_does_not_modify_risk_assessment(db_session):
         risk_repository=RiskRepository(db_session),
         vulnerability_repository=VulnerabilityRepository(db_session),
         network_service_repository=NetworkServiceRepository(db_session),
+        audit_service=AuditService(AuditRepository(db_session)),
         ai_manager=FakeAIManager(),
     )
     service.generate_recommendation(ra.id)

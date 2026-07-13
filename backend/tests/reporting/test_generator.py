@@ -17,12 +17,14 @@ from app.parsers.models import (
 from app.reporting.generator import REPORT_TEMPLATE_VERSION, build_report_data
 from app.repositories.ai_recommendation_repository import AIRecommendationRepository
 from app.repositories.asset_repository import AssetRepository
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.network_service_repository import NetworkServiceRepository
 from app.repositories.risk_repository import RiskRepository
 from app.repositories.scan_finding_repository import ScanFindingRepository
 from app.repositories.scan_repository import ScanRepository
 from app.repositories.vulnerability_repository import VulnerabilityRepository
 from app.services.ai_service import AIService
+from app.services.audit_service import AuditService
 from app.services.inventory_service import InventoryService
 from app.services.risk_service import RiskService
 
@@ -60,6 +62,7 @@ class _Repos:
         self.service = NetworkServiceRepository(db_session)
         self.scan_finding = ScanFindingRepository(db_session)
         self.ai_recommendation = AIRecommendationRepository(db_session)
+        self.audit = AuditRepository(db_session)
 
 
 def _seed_scan(
@@ -81,8 +84,9 @@ def _seed_scan(
     db_session.add(scan_job)
     db_session.flush()
 
+    audit_service = AuditService(repos.audit)
     inventory_service = InventoryService(
-        db_session, repos.asset, repos.vulnerability, repos.scan
+        db_session, repos.asset, repos.vulnerability, repos.scan, audit_service
     )
     vuln = ParsedVulnerability(
         name="Outdated Service",
@@ -115,6 +119,7 @@ def _seed_scan(
         scan_repository=repos.scan,
         asset_repository=repos.asset,
         scan_finding_repository=repos.scan_finding,
+        audit_service=audit_service,
     )
     risk_service.calculate_risk_for_scan(scan_job.id)
 
@@ -128,6 +133,7 @@ def _seed_scan(
             risk_repository=repos.risk,
             vulnerability_repository=repos.vulnerability,
             network_service_repository=repos.service,
+            audit_service=audit_service,
             ai_manager=_FakeAIManager(),
         )
         for risk in vulnerability_risks:

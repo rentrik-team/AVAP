@@ -1,7 +1,15 @@
+import logging
 import uuid
 from typing import Sequence
 
-from app.core.enums import TargetType
+from app.audit.context import AuditContext
+from app.core.enums import (
+    AuditEventCategory,
+    AuditEventType,
+    AuditOutcome,
+    AuditResourceType,
+    TargetType,
+)
 from app.core.exceptions import NotFoundException, ValidationException
 from app.core.security import (
     is_valid_hostname,
@@ -12,16 +20,60 @@ from app.core.security import (
 from app.models.target import Target
 from app.repositories.target_repository import TargetRepository
 from app.schemas.target import CreateTargetRequest, UpdateTargetRequest
+from app.services.audit_service import AuditService
+
+logger = logging.getLogger(__name__)
 
 
 class TargetService:
     """Business logic for Target management.
-    
+
     Responsible for validating, normalizing, and deduplicating scan targets.
     """
-    
-    def __init__(self, repository: TargetRepository):
+
+    def __init__(self, repository: TargetRepository, audit_service: AuditService):
         self.repository = repository
+        self.audit_service = audit_service
+
+    def _audit_best_effort(
+        self,
+        event_type: AuditEventType,
+        outcome: AuditOutcome,
+        context: AuditContext,
+        resource_id: uuid.UUID,
+        metadata: dict | None = None,
+    ) -> None:
+        """Record a TARGET-category audit event for an action whose
+        underlying repository already committed synchronously before this
+        call (TargetRepository.create/update/delete commit internally, a
+        pre-existing Module 01 pattern this module does not redesign).
+
+        This is a documented, best-effort trust boundary: the target
+        mutation has already durably happened by the time this runs, so
+        audit persistence failure here cannot roll back the business
+        action. It is logged and swallowed rather than raised, since
+        raising here would incorrectly report an already-successful
+        mutation as failed.
+        """
+        try:
+            self.audit_service.append_event(
+                event_type=event_type,
+                category=AuditEventCategory.TARGET,
+                outcome=outcome,
+                context=context,
+                resource_type=AuditResourceType.TARGET,
+                resource_id=resource_id,
+                metadata=metadata,
+            )
+            self.repository.session.commit()
+        except Exception:
+            self.repository.session.rollback()
+            logger.error(
+                "Audit subsystem failed to record a target event; the "
+                "already-committed target mutation is unaffected.",
+                extra={"event_type": event_type.value, "resource_id": str(resource_id)},
+                exc_info=True,
+            )
 
     def _determine_target_type(self, target_value: str) -> TargetType:
         """Classify a target string into its TargetType enum.
@@ -49,25 +101,27 @@ class TargetService:
             details={"target": target_value, "allowed_formats": ["IPv4", "CIDR", "Hostname"]}
         )
 
-    def create_target(self, request: CreateTargetRequest) -> Target:
+    def create_target(
+        self, request: CreateTargetRequest, audit_context: AuditContext | None = None
+    ) -> Target:
         """Process and persist a new target.
-        
+
         Args:
             request: The target creation request.
-            
+
         Returns:
             The persisted Target model.
         """
         # 1. Normalize
         normalized_value = normalize_target_value(request.target)
-        
+
         # 2. Validate format and classify type
         target_type = self._determine_target_type(normalized_value)
-        
+
         # 3. Prevent duplicates
         existing = self.repository.get_by_value(normalized_value)
         if existing:
-            # Re-throw as validation exception to match business rules? 
+            # Re-throw as validation exception to match business rules?
             # Or rely on repository's DuplicateException?
             # Since repository throws DuplicateException on IntegrityError,
             # we can proactively throw it here to avoid burning sequence numbers,
@@ -77,10 +131,19 @@ class TargetService:
                 message=f"Target '{normalized_value}' already exists.",
                 details={"target": normalized_value}
             )
-            
+
         # 4. Construct model and persist
         target = Target(target=normalized_value, target_type=target_type)
-        return self.repository.create(target)
+        created = self.repository.create(target)
+
+        self._audit_best_effort(
+            event_type=AuditEventType.TARGET_CREATED,
+            outcome=AuditOutcome.SUCCESS,
+            context=audit_context or AuditContext.system(),
+            resource_id=created.id,
+            metadata={"target_type": created.target_type.value},
+        )
+        return created
 
     def get_target(self, target_id: uuid.UUID) -> Target:
         """Retrieve a single target by ID.
@@ -111,23 +174,28 @@ class TargetService:
         """
         return self.repository.get_all(skip=skip, limit=limit)
 
-    def update_target(self, target_id: uuid.UUID, request: UpdateTargetRequest) -> Target:
+    def update_target(
+        self,
+        target_id: uuid.UUID,
+        request: UpdateTargetRequest,
+        audit_context: AuditContext | None = None,
+    ) -> Target:
         """Update an existing target.
-        
+
         Args:
             target_id: The UUID of the target to update.
             request: The update request data.
-            
+
         Returns:
             The updated Target model.
         """
         # Retrieve existing
         target = self.get_target(target_id)
-        
+
         # Normalize and validate new value
         normalized_value = normalize_target_value(request.target)
         target_type = self._determine_target_type(normalized_value)
-        
+
         # Check for duplicates on update (excluding self)
         existing = self.repository.get_by_value(normalized_value)
         if existing and existing.id != target_id:
@@ -136,18 +204,39 @@ class TargetService:
                 message=f"Target '{normalized_value}' already exists.",
                 details={"target": normalized_value}
             )
-            
+
         # Update
         target.target = normalized_value
         target.target_type = target_type
-        
-        return self.repository.update(target)
 
-    def delete_target(self, target_id: uuid.UUID) -> None:
+        updated = self.repository.update(target)
+
+        self._audit_best_effort(
+            event_type=AuditEventType.TARGET_UPDATED,
+            outcome=AuditOutcome.SUCCESS,
+            context=audit_context or AuditContext.system(),
+            resource_id=updated.id,
+            metadata={"target_type": updated.target_type.value},
+        )
+        return updated
+
+    def delete_target(
+        self, target_id: uuid.UUID, audit_context: AuditContext | None = None
+    ) -> None:
         """Delete a target.
-        
+
         Args:
             target_id: The UUID of the target.
         """
         target = self.get_target(target_id)
+        target_id_value = target.id
+        target_type_value = target.target_type.value
         self.repository.delete(target)
+
+        self._audit_best_effort(
+            event_type=AuditEventType.TARGET_DELETED,
+            outcome=AuditOutcome.SUCCESS,
+            context=audit_context or AuditContext.system(),
+            resource_id=target_id_value,
+            metadata={"target_type": target_type_value},
+        )

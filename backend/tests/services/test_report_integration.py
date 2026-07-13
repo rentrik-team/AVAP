@@ -20,6 +20,7 @@ from app.parsers.models import (
 )
 from app.repositories.ai_recommendation_repository import AIRecommendationRepository
 from app.repositories.asset_repository import AssetRepository
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.network_service_repository import NetworkServiceRepository
 from app.repositories.report_repository import ReportRepository
 from app.repositories.risk_repository import RiskRepository
@@ -27,6 +28,7 @@ from app.repositories.scan_finding_repository import ScanFindingRepository
 from app.repositories.scan_repository import ScanRepository
 from app.repositories.vulnerability_repository import VulnerabilityRepository
 from app.services.ai_service import AIService
+from app.services.audit_service import AuditService
 from app.services.inventory_service import InventoryService
 from app.services.report_service import ReportService
 from app.services.risk_service import RiskService
@@ -68,11 +70,13 @@ def test_module05_through_module08_end_to_end(client: TestClient, db_session, tm
     db_session.add(scan_job)
     db_session.flush()
 
+    audit_service = AuditService(AuditRepository(db_session))
     inventory_service = InventoryService(
         db_session,
         AssetRepository(db_session),
         VulnerabilityRepository(db_session),
         ScanRepository(db_session),
+        audit_service,
     )
     vuln = ParsedVulnerability(
         name="Outdated OpenSSH",
@@ -104,6 +108,7 @@ def test_module05_through_module08_end_to_end(client: TestClient, db_session, tm
         scan_repository=ScanRepository(db_session),
         asset_repository=AssetRepository(db_session),
         scan_finding_repository=ScanFindingRepository(db_session),
+        audit_service=audit_service,
     )
     scan_risk = risk_service.calculate_risk_for_scan(scan_job.id)
     assert scan_risk.risk_score == 8.2
@@ -118,6 +123,7 @@ def test_module05_through_module08_end_to_end(client: TestClient, db_session, tm
         risk_repository=risk_repository,
         vulnerability_repository=VulnerabilityRepository(db_session),
         network_service_repository=NetworkServiceRepository(db_session),
+        audit_service=audit_service,
         ai_manager=_FakeProviderBoundaryManager(),
     )
     ai_service.generate_recommendation(vulnerability_risk.id)
@@ -137,6 +143,7 @@ def test_module05_through_module08_end_to_end(client: TestClient, db_session, tm
             network_service_repository=NetworkServiceRepository(db_session),
             scan_finding_repository=ScanFindingRepository(db_session),
             ai_recommendation_repository=AIRecommendationRepository(db_session),
+            audit_service=audit_service,
             settings=Settings(_env_file=None, report_output_directory=str(tmp_path)),
         )
 

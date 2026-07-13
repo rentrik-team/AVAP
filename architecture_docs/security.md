@@ -280,7 +280,11 @@ Logs should contain:
 - Severity
 - Module
 - Operation
-- Correlation ID (future)
+- Correlation ID — implemented (Module 10): a server-generated or
+  validated-and-reused `X-Request-ID` (bounded length, restricted charset;
+  malformed/oversized/control-character values are replaced with a fresh
+  UUID4), propagated via `app.api.middleware.request_context` and echoed in
+  the `X-Request-ID` response header
 
 Logs must never contain:
 
@@ -291,7 +295,27 @@ Logs must never contain:
 - Session identifiers
 - Database credentials
 
-Audit logs should be immutable where practical.
+Audit logs (Module 10, `AuditEvent`/`audit_events`) are immutable at two
+distinct levels, and the distinction is deliberate:
+
+- **Application-level (always):** no repository or API update/delete path
+  exists for a persisted `AuditEvent`.
+- **Database-level (PostgreSQL only):** migration `0007_audit_event` installs
+  a trigger that rejects any `UPDATE`/`DELETE` on `audit_events`. This is
+  genuine database-enforced append-only behavior, not merely an application
+  convention — but it is not a cryptographic or tamper-evident guarantee
+  (no hash chaining is implemented); see `modules_docs/10_audit_logging.md`
+  for the exact guarantee boundary.
+
+Audit metadata is server-generated only, recursively validated against a
+forbidden-key/size/nesting policy (`app/audit/metadata_policy.py`) before
+persistence, and never contains AI prompts, AI provider responses,
+remediation content, report file paths, or raw exception text.
+
+Client-supplied `X-Forwarded-For`/`X-Real-IP`/actor-identity headers are
+never trusted for audit `source_ip`/actor attribution — only the direct
+ASGI connection address is recorded, since no trusted reverse-proxy
+configuration is documented for this deployment.
 
 ---
 

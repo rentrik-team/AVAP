@@ -13,6 +13,7 @@ from app.database.base import Base
 from app.models import (
     AIRecommendation,
     Asset,
+    AuditEvent,
     NetworkService,
     Report,
     RiskAssessment,

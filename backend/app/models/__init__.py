@@ -7,6 +7,7 @@ from app.models.scan_finding import ScanFinding
 from app.models.risk_assessment import RiskAssessment
 from app.models.ai_recommendation import AIRecommendation
 from app.models.report import Report
+from app.models.audit_event import AuditEvent
 
 __all__ = [
     "Target",
@@ -18,4 +19,5 @@ __all__ = [
     "RiskAssessment",
     "AIRecommendation",
     "Report",
+    "AuditEvent",
 ]

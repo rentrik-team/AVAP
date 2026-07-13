@@ -14,10 +14,12 @@ from app.parsers.models import (
     ParsedVulnerability,
 )
 from app.repositories.asset_repository import AssetRepository
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.risk_repository import RiskRepository
 from app.repositories.scan_finding_repository import ScanFindingRepository
 from app.repositories.scan_repository import ScanRepository
 from app.repositories.vulnerability_repository import VulnerabilityRepository
+from app.services.audit_service import AuditService
 from app.services.inventory_service import InventoryService
 from app.services.risk_service import RiskService
 
@@ -34,11 +36,13 @@ def test_module05_findings_flow_into_module06_risk_and_api(
     db_session.add(scan_job)
     db_session.flush()
 
+    audit_service = AuditService(AuditRepository(db_session))
     inventory_service = InventoryService(
         db_session,
         AssetRepository(db_session),
         VulnerabilityRepository(db_session),
         ScanRepository(db_session),
+        audit_service,
     )
 
     high_vuln = ParsedVulnerability(
@@ -73,6 +77,7 @@ def test_module05_findings_flow_into_module06_risk_and_api(
         scan_repository=ScanRepository(db_session),
         asset_repository=AssetRepository(db_session),
         scan_finding_repository=ScanFindingRepository(db_session),
+        audit_service=audit_service,
     )
     scan_risk = risk_service.calculate_risk_for_scan(scan_job.id)
 

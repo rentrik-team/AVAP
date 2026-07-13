@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.middleware.exception_handler import setup_exception_handlers
+from app.api.middleware.request_context import setup_request_context_middleware
 from app.api.routes.v1.router import api_router
 from app.core.config import get_settings
 from app.core.logging import setup_logging
@@ -56,6 +57,9 @@ def create_app() -> FastAPI:
 
     # Register custom exception handlers
     setup_exception_handlers(app)
+
+    # Assign/propagate a per-request correlation ID (used by audit logging)
+    setup_request_context_middleware(app)
 
     # Include API routing
     app.include_router(api_router, prefix=settings.api_v1_prefix)

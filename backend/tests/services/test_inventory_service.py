@@ -13,8 +13,10 @@ from app.models.service import NetworkService
 from app.models.vulnerability import Vulnerability
 from app.models.scan_finding import ScanFinding
 from app.repositories.asset_repository import AssetRepository
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.vulnerability_repository import VulnerabilityRepository
 from app.repositories.scan_repository import ScanRepository
+from app.services.audit_service import AuditService
 from app.services.inventory_service import InventoryService
 from app.parsers.models import AssessmentPackage, ParsedHost, ParsedService, ParsedVulnerability
 
@@ -50,7 +52,8 @@ def inventory_service(db_session):
     asset_repo = AssetRepository(db_session)
     vuln_repo = VulnerabilityRepository(db_session)
     scan_repo = ScanRepository(db_session)
-    return InventoryService(db_session, asset_repo, vuln_repo, scan_repo)
+    audit_service = AuditService(AuditRepository(db_session))
+    return InventoryService(db_session, asset_repo, vuln_repo, scan_repo, audit_service)
 
 
 def _make_package(scan_id, hosts=None):

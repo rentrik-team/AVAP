@@ -17,7 +17,7 @@ def mock_repo():
 
 @pytest.fixture
 def service(mock_repo):
-    return TargetService(repository=mock_repo)
+    return TargetService(repository=mock_repo, audit_service=Mock())
 
 
 class TestTargetClassificationAndValidation:

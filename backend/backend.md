@@ -125,6 +125,39 @@ The Service Layer owns:
 
 Only services may communicate with multiple components.
 
+## Audit event transaction pattern (Module 10)
+
+Services that append a security-relevant `AuditEvent` (`app/services/audit_service.py`)
+follow one of two patterns depending on whether the service already owns an
+explicit transaction:
+
+- **Shared transaction (preferred):** `AuditService.append_event(...)` (add +
+  flush only, never commit) is called *before* the service's own
+  `session.commit()`. If the audit insert or its metadata validation fails,
+  the exception propagates into the service's existing rollback path, so the
+  business action is never reported as successful without its audit event.
+  Used by `RiskService`, `AIService`, `ReportService`, `InventoryService`.
+- **Best-effort, post-commit:** for repositories that already commit
+  synchronously inside their own `create`/`update`/`delete` methods
+  (`TargetRepository`, `ScanRepository` — a pre-Module-10 pattern not
+  redesigned by this module), the audit event is appended and committed
+  immediately after, in its own try/except. A failure here is logged and
+  swallowed rather than raised, since the business mutation has already
+  durably happened and cannot be rolled back at that point. Used by
+  `TargetService`, `ScanService`.
+
+A FAILURE audit event is always recorded via
+`AuditService.record_failure_safely(...)`, in a fresh transaction *after*
+the business rollback, and never raises itself — it logs and swallows so it
+can never replace the real business exception with an audit-subsystem error.
+
+Per-request actor/correlation context (`app/audit/context.py`) is resolved by
+a FastAPI dependency (`app/api/dependencies/audit.py`) from the real ASGI
+connection and a request-ID middleware
+(`app/api/middleware/request_context.py`) — never from the full `Request`
+object passed into a service, and never from a client-supplied header
+claiming an actor identity.
+
 ---
 
 # Repository Layer

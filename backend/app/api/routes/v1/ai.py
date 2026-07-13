@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.ai.manager import AIManager
+from app.api.dependencies.audit import get_audit_context, get_audit_service
 from app.api.dependencies.database import get_db
 from app.api.responses.api_response import SuccessResponse
+from app.audit.context import AuditContext
 from app.repositories.ai_recommendation_repository import AIRecommendationRepository
 from app.repositories.network_service_repository import NetworkServiceRepository
 from app.repositories.risk_repository import RiskRepository
@@ -16,11 +18,15 @@ from app.schemas.ai import (
     AIRecommendationResponse,
 )
 from app.services.ai_service import AIService
+from app.services.audit_service import AuditService
 
 router = APIRouter()
 
 
-def get_ai_service(db: Session = Depends(get_db)) -> AIService:
+def get_ai_service(
+    db: Session = Depends(get_db),
+    audit_service: AuditService = Depends(get_audit_service),
+) -> AIService:
     """Dependency to inject a fully constructed AIService into routes."""
     return AIService(
         session=db,
@@ -28,6 +34,7 @@ def get_ai_service(db: Session = Depends(get_db)) -> AIService:
         risk_repository=RiskRepository(db),
         vulnerability_repository=VulnerabilityRepository(db),
         network_service_repository=NetworkServiceRepository(db),
+        audit_service=audit_service,
     )
 
 
@@ -54,12 +61,15 @@ def get_recommendation(
 def generate_recommendation(
     assessment_id: uuid.UUID,
     service: AIService = Depends(get_ai_service),
+    audit_context: AuditContext = Depends(get_audit_context),
 ) -> dict:
     """Generate an AI remediation recommendation for a vulnerability-scoped
     risk assessment. Safe to call repeatedly: an existing recommendation is
     reused as long as the risk assessment has not been recalculated since.
     """
-    recommendation = service.generate_recommendation(assessment_id)
+    recommendation = service.generate_recommendation(
+        assessment_id, audit_context=audit_context
+    )
     return {"data": AIRecommendationResponse.model_validate(recommendation)}
 
 

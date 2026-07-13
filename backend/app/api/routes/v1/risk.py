@@ -3,20 +3,26 @@ import uuid
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.audit import get_audit_context, get_audit_service
 from app.api.dependencies.database import get_db
 from app.api.responses.api_response import SuccessResponse
+from app.audit.context import AuditContext
 from app.core.enums import RiskLevel, RiskScope
 from app.repositories.asset_repository import AssetRepository
 from app.repositories.risk_repository import RiskRepository
 from app.repositories.scan_finding_repository import ScanFindingRepository
 from app.repositories.scan_repository import ScanRepository
 from app.schemas.risk import RiskAssessmentListResponse, RiskAssessmentResponse
+from app.services.audit_service import AuditService
 from app.services.risk_service import RiskService
 
 router = APIRouter()
 
 
-def get_risk_service(db: Session = Depends(get_db)) -> RiskService:
+def get_risk_service(
+    db: Session = Depends(get_db),
+    audit_service: AuditService = Depends(get_audit_service),
+) -> RiskService:
     """Dependency to inject a fully constructed RiskService into routes."""
     return RiskService(
         session=db,
@@ -24,6 +30,7 @@ def get_risk_service(db: Session = Depends(get_db)) -> RiskService:
         scan_repository=ScanRepository(db),
         asset_repository=AssetRepository(db),
         scan_finding_repository=ScanFindingRepository(db),
+        audit_service=audit_service,
     )
 
 
@@ -86,13 +93,14 @@ def get_risk_by_scan(
 def calculate_risk_for_scan(
     scan_id: uuid.UUID,
     service: RiskService = Depends(get_risk_service),
+    audit_context: AuditContext = Depends(get_audit_context),
 ) -> dict:
     """Trigger deterministic risk calculation for a scan's persisted findings.
 
     Safe to call repeatedly: recalculation updates existing risk records in
     place using the same deterministic rules.
     """
-    risk = service.calculate_risk_for_scan(scan_id)
+    risk = service.calculate_risk_for_scan(scan_id, audit_context=audit_context)
     return {"data": RiskAssessmentResponse.model_validate(risk)}
 
 

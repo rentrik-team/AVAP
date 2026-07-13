@@ -3,8 +3,10 @@ import uuid
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.audit import get_audit_context, get_audit_service
 from app.api.dependencies.database import get_db
 from app.api.responses.api_response import SuccessResponse
+from app.audit.context import AuditContext
 from app.repositories.target_repository import TargetRepository
 from app.schemas.target import (
     CreateTargetRequest,
@@ -12,15 +14,19 @@ from app.schemas.target import (
     TargetResponse,
     UpdateTargetRequest,
 )
+from app.services.audit_service import AuditService
 from app.services.target_service import TargetService
 
 router = APIRouter()
 
 
-def get_target_service(db: Session = Depends(get_db)) -> TargetService:
+def get_target_service(
+    db: Session = Depends(get_db),
+    audit_service: AuditService = Depends(get_audit_service),
+) -> TargetService:
     """Dependency to inject TargetService into routes."""
     repository = TargetRepository(db)
-    return TargetService(repository)
+    return TargetService(repository, audit_service=audit_service)
 
 
 @router.post(
@@ -32,13 +38,14 @@ def get_target_service(db: Session = Depends(get_db)) -> TargetService:
 def create_target(
     request: CreateTargetRequest,
     service: TargetService = Depends(get_target_service),
+    audit_context: AuditContext = Depends(get_audit_context),
 ) -> dict:
     """Register a new scan target (IPv4, CIDR, or Hostname).
-    
+
     The target is validated, normalized, and checked for duplicates
     before being persisted.
     """
-    target = service.create_target(request)
+    target = service.create_target(request, audit_context=audit_context)
     # Convert SQLAlchemy model to Pydantic model for response
     target_resp = TargetResponse.model_validate(target)
     return {"data": target_resp}
@@ -85,12 +92,13 @@ def update_target(
     target_id: uuid.UUID,
     request: UpdateTargetRequest,
     service: TargetService = Depends(get_target_service),
+    audit_context: AuditContext = Depends(get_audit_context),
 ) -> dict:
     """Update an existing target.
-    
+
     The new target value is validated and normalized.
     """
-    target = service.update_target(target_id, request)
+    target = service.update_target(target_id, request, audit_context=audit_context)
     return {"data": TargetResponse.model_validate(target)}
 
 
@@ -102,6 +110,7 @@ def update_target(
 def delete_target(
     target_id: uuid.UUID,
     service: TargetService = Depends(get_target_service),
+    audit_context: AuditContext = Depends(get_audit_context),
 ) -> None:
     """Delete a target from the system."""
-    service.delete_target(target_id)
+    service.delete_target(target_id, audit_context=audit_context)

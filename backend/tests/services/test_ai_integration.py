@@ -18,12 +18,14 @@ from app.parsers.models import (
 )
 from app.repositories.ai_recommendation_repository import AIRecommendationRepository
 from app.repositories.asset_repository import AssetRepository
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.network_service_repository import NetworkServiceRepository
 from app.repositories.risk_repository import RiskRepository
 from app.repositories.scan_finding_repository import ScanFindingRepository
 from app.repositories.scan_repository import ScanRepository
 from app.repositories.vulnerability_repository import VulnerabilityRepository
 from app.services.ai_service import AIService
+from app.services.audit_service import AuditService
 from app.services.inventory_service import InventoryService
 from app.services.risk_service import RiskService
 
@@ -67,11 +69,13 @@ def test_module05_through_module07_end_to_end(client: TestClient, db_session):
     db_session.add(scan_job)
     db_session.flush()
 
+    audit_service = AuditService(AuditRepository(db_session))
     inventory_service = InventoryService(
         db_session,
         AssetRepository(db_session),
         VulnerabilityRepository(db_session),
         ScanRepository(db_session),
+        audit_service,
     )
 
     vuln = ParsedVulnerability(
@@ -101,6 +105,7 @@ def test_module05_through_module07_end_to_end(client: TestClient, db_session):
         scan_repository=ScanRepository(db_session),
         asset_repository=AssetRepository(db_session),
         scan_finding_repository=ScanFindingRepository(db_session),
+        audit_service=audit_service,
     )
     risk_service.calculate_risk_for_scan(scan_job.id)
 
@@ -119,6 +124,7 @@ def test_module05_through_module07_end_to_end(client: TestClient, db_session):
         risk_repository=RiskRepository(db_session),
         vulnerability_repository=VulnerabilityRepository(db_session),
         network_service_repository=NetworkServiceRepository(db_session),
+        audit_service=audit_service,
         ai_manager=fake_manager,
     )
     recommendation = ai_service.generate_recommendation(risk_assessment.id)

@@ -123,7 +123,7 @@ The platform currently consists of the following logical entities.
 | RiskAssessment | Stores calculated risk (explicit scope: vulnerability, asset, scan, or assessment) |
 | AIRecommendation | Stores AI-generated remediation, identified by (risk_assessment_id, provider, model, prompt_version) |
 | Report | Stores immutable, versioned report metadata for one scan per row; the PDF file is stored separately on disk |
-| AuditLog | Stores system events |
+| AuditEvent | Stores append-only, structured security-relevant event records (`audit_events` table); resource/scan identifiers are plain UUID columns with no foreign key, so audit evidence survives deletion of the resource it documents |
 
 Additional entities may be introduced as the platform evolves.
 
@@ -210,7 +210,7 @@ Each entity has a clearly defined owner.
 | RiskAssessment | Risk Engine |
 | AIRecommendation | AI Engine |
 | Report | Reporting Engine |
-| AuditLog | Audit Logging Module |
+| AuditEvent | Audit Logging Module |
 
 Business logic should only modify entities owned by the corresponding module.
 

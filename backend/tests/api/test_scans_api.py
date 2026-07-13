@@ -3,7 +3,9 @@ import pytest
 from fastapi.testclient import TestClient
 from app.core.enums import ScanStatus
 from app.api.routes.v1.scans import get_scan_service
+from app.services.audit_service import AuditService
 from app.services.scan_service import ScanService
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.scan_repository import ScanRepository
 from app.repositories.target_repository import TargetRepository
 from app.scanners.interfaces import IScannerEngine
@@ -28,6 +30,7 @@ def override_scan_service(db_session):
         return ScanService(
             scan_repository=ScanRepository(db_session),
             target_repository=TargetRepository(db_session),
+            audit_service=AuditService(AuditRepository(db_session)),
             scanner_engine=MockScannerEngine()
         )
     app.dependency_overrides[get_scan_service] = mock_get_scan_service

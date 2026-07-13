@@ -7,8 +7,20 @@ from sqlalchemy.orm import Session
 from app.ai.manager import AIManager
 from app.ai.prompt_builder import PROMPT_VERSION, build_prompt
 from app.ai.response_validator import validate_response
-from app.core.enums import RiskScope
-from app.core.exceptions import InsufficientContextException, NotFoundException
+from app.audit.context import AuditContext
+from app.core.enums import (
+    AuditEventCategory,
+    AuditEventType,
+    AuditOutcome,
+    AuditResourceType,
+    RiskScope,
+)
+from app.core.exceptions import (
+    AIProviderException,
+    InsufficientContextException,
+    InvalidAIResponseException,
+    NotFoundException,
+)
 from app.models.ai_recommendation import AIRecommendation
 from app.models.risk_assessment import RiskAssessment
 from app.models.service import NetworkService
@@ -18,6 +30,7 @@ from app.repositories.network_service_repository import NetworkServiceRepository
 from app.repositories.risk_repository import RiskRepository
 from app.repositories.vulnerability_repository import VulnerabilityRepository
 from app.schemas.ai import AIRemediationContext
+from app.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +75,7 @@ class AIService:
         risk_repository: RiskRepository,
         vulnerability_repository: VulnerabilityRepository,
         network_service_repository: NetworkServiceRepository,
+        audit_service: AuditService,
         ai_manager: AIManager | None = None,
     ):
         self.session = session
@@ -69,6 +83,7 @@ class AIService:
         self.risk_repository = risk_repository
         self.vulnerability_repository = vulnerability_repository
         self.network_service_repository = network_service_repository
+        self.audit_service = audit_service
         self.ai_manager = ai_manager or AIManager()
 
     def _get_vulnerability_risk_assessment(
@@ -86,7 +101,9 @@ class AIService:
         return risk_assessment
 
     def generate_recommendation(
-        self, risk_assessment_id: uuid.UUID
+        self,
+        risk_assessment_id: uuid.UUID,
+        audit_context: AuditContext | None = None,
     ) -> AIRecommendation:
         """Generate (or return the still-valid) remediation recommendation.
 
@@ -97,6 +114,7 @@ class AIService:
         is generated and persisted, updating any prior record for the same
         identity in place.
         """
+        context = audit_context or AuditContext.system()
         risk_assessment = self._get_vulnerability_risk_assessment(risk_assessment_id)
 
         vulnerability = self.vulnerability_repository.get_by_id(
@@ -117,6 +135,33 @@ class AIService:
             prompt_version=PROMPT_VERSION,
         )
         if existing and existing.generated_at >= risk_assessment.calculated_at:
+            # Idempotent success: a current recommendation is already
+            # available without calling the provider again. Nothing else
+            # is pending on the session, so the audit event is committed
+            # on its own.
+            try:
+                self.audit_service.append_event(
+                    event_type=AuditEventType.AI_RECOMMENDATION_GENERATED,
+                    category=AuditEventCategory.AI,
+                    outcome=AuditOutcome.SUCCESS,
+                    context=context,
+                    resource_type=AuditResourceType.AI_RECOMMENDATION,
+                    resource_id=existing.id,
+                    metadata={
+                        "provider": existing.provider,
+                        "model": existing.model,
+                        "prompt_version": existing.prompt_version,
+                    },
+                )
+                self.session.commit()
+            except Exception:
+                self.session.rollback()
+                logger.error(
+                    "Audit subsystem failed to record an AI recommendation "
+                    "event; the existing recommendation is unaffected.",
+                    extra={"risk_assessment_id": str(risk_assessment.id)},
+                    exc_info=True,
+                )
             return existing
 
         service = None
@@ -125,8 +170,10 @@ class AIService:
                 risk_assessment.service_id
             )
 
-        context = _build_remediation_context(vulnerability, risk_assessment, service)
-        prompt = build_prompt(context)
+        remediation_context = _build_remediation_context(
+            vulnerability, risk_assessment, service
+        )
+        prompt = build_prompt(remediation_context)
 
         logger.info(
             "AI recommendation generation started",
@@ -138,8 +185,20 @@ class AIService:
             },
         )
 
-        provider_response = self.ai_manager.generate(prompt)
-        recommendation_output = validate_response(provider_response.content)
+        try:
+            provider_response = self.ai_manager.generate(prompt)
+            recommendation_output = validate_response(provider_response.content)
+        except (AIProviderException, InvalidAIResponseException) as exc:
+            self.audit_service.record_failure_safely(
+                session=self.session,
+                event_type=AuditEventType.AI_RECOMMENDATION_FAILED,
+                category=AuditEventCategory.AI,
+                context=context,
+                resource_type=AuditResourceType.RISK_ASSESSMENT,
+                resource_id=risk_assessment.id,
+                metadata={"failure_category": type(exc).__name__},
+            )
+            raise
 
         try:
             record = self.ai_recommendation_repository.upsert(
@@ -155,8 +214,25 @@ class AIService:
                 cautions=recommendation_output.cautions,
                 generated_at=datetime.now(UTC),
             )
+
+            # Shared transaction: an audit persistence failure here rolls
+            # back the recommendation upsert too, rather than reporting a
+            # false SUCCESS.
+            self.audit_service.append_event(
+                event_type=AuditEventType.AI_RECOMMENDATION_GENERATED,
+                category=AuditEventCategory.AI,
+                outcome=AuditOutcome.SUCCESS,
+                context=context,
+                resource_type=AuditResourceType.AI_RECOMMENDATION,
+                resource_id=record.id,
+                metadata={
+                    "provider": record.provider,
+                    "model": record.model,
+                    "prompt_version": record.prompt_version,
+                },
+            )
             self.session.commit()
-        except Exception:
+        except Exception as exc:
             logger.error(
                 "Failed to persist AI recommendation, rolling back transaction",
                 extra={
@@ -166,6 +242,15 @@ class AIService:
                 exc_info=True,
             )
             self.session.rollback()
+            self.audit_service.record_failure_safely(
+                session=self.session,
+                event_type=AuditEventType.AI_RECOMMENDATION_FAILED,
+                category=AuditEventCategory.AI,
+                context=context,
+                resource_type=AuditResourceType.RISK_ASSESSMENT,
+                resource_id=risk_assessment.id,
+                metadata={"failure_category": type(exc).__name__},
+            )
             raise
 
         logger.info(

@@ -6,7 +6,7 @@
 
 **Version:** 1.0
 
-**Status:** Planned
+**Status:** Implemented
 
 ---
 
@@ -113,103 +113,206 @@ The module never modifies business data.
 
 ---
 
+# Implemented Architecture and Scope
+
+The implementation follows the documented layering exactly:
+
+| Conceptual Component | Implementation |
+|---|---|
+| Dashboard Coordinator / Dashboard Service | `app/services/dashboard_service.py` (`DashboardService`) |
+| Repository Layer / Metrics Aggregator | `app/repositories/dashboard_repository.py` (`DashboardRepository`), plus reuse of `RiskRepository.get_assessment()` and `ReportRepository.get_all()` |
+| Dashboard Response Builder | `app/schemas/dashboard.py` (frozen Pydantic v2 read models) |
+| Dashboard API Layer | `app/api/routes/v1/dashboard.py`, mounted at `/api/v1/dashboard` |
+
+`DashboardRepository` performs every cross-domain aggregate query (`COUNT`,
+`GROUP BY`, window-function ranking) directly in SQL. It never adds, updates,
+deletes, flushes, or commits, and it never recalculates risk or severity —
+it only reads what Modules 02/05/06/07/08 have already persisted. No new
+database table, index, or Alembic migration was required: every dashboard
+query runs against the existing schema using existing indexed columns
+(`RiskAssessment.scope`, `.asset_id`, `.vulnerability_id`).
+
+**Deviation from `backend/project_structure.md`'s illustrative `app/dashboard/`
+sketch:** that document shows a dedicated `app/dashboard/{service.py,
+aggregator.py}` package. This implementation places `DashboardService` in
+`app/services/` and `DashboardRepository` in `app/repositories/` instead,
+matching the actual convention every other completed module uses (Target,
+Scan, Asset, Vulnerability, Risk, AI, and Report services/repositories all
+live in the flat `app/services/`/`app/repositories/` directories; a
+dedicated top-level package — `risk_engine/`, `ai/`, `reporting/` — is only
+used where a module has substantial *pure, non-persistence* logic with no
+existing single-repository home). Since SQL already performs the
+aggregation directly inside `DashboardRepository`, a separate
+`aggregator.py` pure-Python layer would be a redundant pass-through with no
+independent responsibility. Tests likewise live in `tests/services/`,
+`tests/repositories/`, and `tests/api/` rather than a new `tests/dashboard/`
+directory, for the same reason.
+
+## Metric Ownership Map
+
+| Metric family | Authoritative source |
+|---|---|
+| Targets, scans, scan status/duration | `Target`, `ScanJob` |
+| Assets, network services | `Asset`, `NetworkService` |
+| Vulnerability identity and severity | `Vulnerability.severity_rating` (never `RiskAssessment`) |
+| Scan findings (observations) | `ScanFinding` |
+| Deterministic risk score/level/distribution | `RiskAssessment` (Module 06 only) |
+| AI recommendation availability/freshness | `AIRecommendation` vs. `RiskAssessment.calculated_at` (Module 07's own freshness rule) |
+| Report counts/formats/recency | `Report` metadata (Module 08); the filesystem is never inspected |
+
+## Corrections to this document's original illustrative examples
+
+Two originally-listed Asset Dashboard example metrics do not map to any
+persisted field and are intentionally **not implemented**, per the
+principle of never fabricating data to satisfy an example:
+
+* **Active Assets** — `Asset` has no status/liveness column. There is no
+  persisted concept of an asset being "active" vs. "inactive".
+* **Assets by Type** — `Asset` has no type/classification column (only
+  `ipv4`, `hostname`, `operating_system`).
+
+Both are replaced by `total_network_services` (Service exposure, a real,
+owned entity) and `recently_discovered_assets` (a real, persisted
+`Asset.created_at`-ordered projection).
+
+## "Current" per-entity risk semantics
+
+`RiskAssessment` at ASSET and VULNERABILITY scope is recorded per
+`(scan, entity)` pair — the same asset or vulnerability can have multiple
+rows across different scans. There is no single "latest" row that is
+unambiguously authoritative platform-wide. The dashboard therefore defines
+an entity's **current risk** as the **maximum `risk_score` ever persisted**
+for that entity across all scans (ties broken by the `RiskAssessment` row's
+own id), mirroring Module 06's own "maximum of children" aggregation
+philosophy rather than inventing a new "latest scan wins" rule. This
+population is used for `risk_level_distribution`, `top_risk_assets`, and
+`high_risk_asset_count`.
+
+## Historical trends
+
+The schema does not retain periodic snapshots of any metric (no
+time-series/analytics table exists). Consistent with "do not fabricate
+metrics," this implementation exposes only current-state aggregates and
+bounded "recent N" projections (`recent_scans`, `recently_discovered_assets`,
+`recent_reports`) ordered by real persisted timestamps. No 7-day/30-day
+trend charts are computed by grouping current-state rows by `created_at`,
+since that would misrepresent point-in-time inventory state as a time
+series.
+
+---
+
 # Dashboard Categories
 
 The Dashboard APIs expose multiple dashboard views.
 
-## Executive Dashboard
+## Executive Dashboard (`GET /dashboard/summary`)
 
-Provides high-level metrics.
+Implemented fields (`DashboardSummaryResponse`):
 
-Examples:
+* `total_targets`, `total_scans`, `total_assets` — direct table counts
+* `unique_vulnerability_count` — distinct `Vulnerability` catalog identities
+* `critical_vulnerability_count` — subset with `severity_rating == "Critical"`
+* `total_reports_generated` — count of persisted `Report` rows
+* `overall_risk_score`, `overall_risk_level` — the singleton ASSESSMENT-scope
+  `RiskAssessment` (`0.0` / `INFORMATIONAL` when none has been calculated yet)
+* `high_risk_asset_count` — assets whose current (worst) ASSET-scope risk
+  level is `HIGH` or `CRITICAL`
 
-* Total Assets
-* Total Vulnerabilities
-* Total Scans
-* Total Reports
-* Overall Risk Score
-* Critical Vulnerabilities
-* High Risk Assets
-
----
-
-## Operations Dashboard
-
-Provides operational metrics.
-
-Examples:
-
-* Running Scans
-* Completed Scans
-* Failed Scans
-* Scan Success Rate
-* Average Scan Duration
+An empty platform returns all-zero counts with HTTP 200, never 404.
 
 ---
 
-## Asset Dashboard
+## Operations metrics (folded into `GET /dashboard/scans`)
 
-Provides asset inventory information.
-
-Examples:
-
-* Total Assets
-* Active Assets
-* Assets by Type
-* Recently Discovered Assets
+Running/Completed/Failed counts, Scan Success Rate, and Average Scan
+Duration are all returned by the Scan Statistics endpoint below rather than
+as a separate "Operations" endpoint, since they share the same `ScanJob`
+query and the documented REST surface defines no separate `/operations`
+route.
 
 ---
 
-## Vulnerability Dashboard
+## Asset Dashboard (`GET /dashboard/assets`)
 
-Provides vulnerability metrics.
+Implemented fields (`DashboardAssetStatisticsResponse`):
 
-Examples:
+* `total_assets` — count of `Asset` rows
+* `total_network_services` — count of `NetworkService` rows (service exposure)
+* `recently_discovered_assets` — bounded (`limit`, default 10, max 50) list
+  ordered by `Asset.created_at` descending
 
-* Total Vulnerabilities
-* Critical
-* High
-* Medium
-* Low
-* Informational
-
----
-
-## Risk Dashboard
-
-Provides risk statistics.
-
-Examples:
-
-* Overall Risk Score
-* Risk Distribution
-* Highest Risk Assets
-* Highest Risk Vulnerabilities
+"Active Assets" and "Assets by Type" from this document's original example
+list are not implemented; see "Corrections to this document's original
+illustrative examples" above.
 
 ---
 
-## Reporting Dashboard
+## Vulnerability Dashboard (`GET /dashboard/vulnerabilities`)
 
-Provides report statistics.
+Implemented fields (`DashboardVulnerabilityStatisticsResponse`):
 
-Examples:
-
-* Reports Generated
-* Report Formats
-* Recent Reports
+* `unique_vulnerability_count` — distinct `Vulnerability` catalog identities
+* `finding_count` — total `ScanFinding` rows across all scans (deliberately
+  a separate field: a finding count is never substituted for a vulnerability
+  identity count, or vice versa)
+* `severity_distribution` — `{critical, high, medium, low, informational,
+  unknown}`, grouped by `Vulnerability.severity_rating`. `informational`
+  captures the `"None"` rating; `unknown` captures any other persisted value,
+  so unrecognized data can never inflate a known severity bucket.
 
 ---
 
-## AI Dashboard
+## Risk Dashboard (`GET /dashboard/risk`)
 
-Provides AI recommendation statistics.
+Implemented fields (`DashboardRiskStatisticsResponse`), sourced exclusively
+from Module 06 `RiskAssessment` rows — never from `Vulnerability.severity_rating`:
 
-Examples:
+* `overall_risk_score`, `overall_risk_level` — the ASSESSMENT-scope singleton
+* `risk_level_distribution` — count of assets per risk level, using each
+  asset's current (worst) ASSET-scope risk (see "'Current' per-entity risk
+  semantics" above)
+* `top_risk_assets` — bounded (`top_limit`, default 10, max 50) list of
+  assets ranked by current risk score descending, tie-broken by IPv4
+  ascending
+* `top_risk_vulnerabilities` — bounded (`top_limit`) list of vulnerability
+  identities ranked by their current (worst) VULNERABILITY-scope risk score
+  descending, tie-broken by name ascending; includes `affected_asset_count`
+  (distinct assets carrying that vulnerability) as supplementary context,
+  never as part of the ranking itself
 
-* Recommendations Generated
-* Recommendations by Severity
-* AI Provider Usage
-* Model Usage
+---
+
+## Reporting Dashboard (`GET /dashboard/reports`)
+
+Implemented fields (`DashboardReportStatisticsResponse`), sourced only from
+Module 08 `Report` metadata — the filesystem is never inspected:
+
+* `total_reports_generated`, `reports_by_format`, `latest_report_generated_at`
+* `recent_reports` — bounded (`limit`, default 10, max 50) list ordered by
+  `generated_at` descending
+
+---
+
+## AI Dashboard (`GET /dashboard/ai`)
+
+Implemented fields (`DashboardAIStatisticsResponse`):
+
+* `total_recommendations`, `recommendations_by_provider`,
+  `recommendations_by_model`, `recommendations_by_severity` (joined against
+  the recommendation's own vulnerability's `severity_rating`)
+* `eligible_vulnerability_risk_count` — every persisted VULNERABILITY-scope
+  `RiskAssessment`
+* `current_recommendation_count` — the subset with at least one
+  `AIRecommendation` whose `generated_at >= risk_assessment.calculated_at`
+  (Module 07's own freshness rule; evaluated read-only, never regenerated)
+* `missing_recommendation_count` — `eligible - current`
+* `remediation_coverage_percent` — `current / eligible * 100` rounded to one
+  decimal, or `0.0` when `eligible == 0` (documented empty-state, never a
+  division-by-zero error)
+
+This reports recommendation **availability**, not remediation
+effectiveness — the field is deliberately not named "AI effectiveness."
+The dashboard never triggers AI generation.
 
 ---
 
@@ -277,17 +380,18 @@ Base endpoint:
 GET /dashboard/summary
 ```
 
-Returns overall platform statistics.
+Returns overall platform statistics. No query parameters.
 
 ---
 
 ## Asset Statistics
 
 ```text
-GET /dashboard/assets
+GET /dashboard/assets?limit=10
 ```
 
-Returns asset-related metrics.
+Returns asset-related metrics. `limit` (recently discovered assets):
+integer, default 10, min 1, max 50.
 
 ---
 
@@ -297,37 +401,40 @@ Returns asset-related metrics.
 GET /dashboard/vulnerabilities
 ```
 
-Returns vulnerability metrics.
+Returns vulnerability metrics. No query parameters.
 
 ---
 
 ## Risk Statistics
 
 ```text
-GET /dashboard/risk
+GET /dashboard/risk?top_limit=10
 ```
 
-Returns aggregated risk information.
+Returns aggregated risk information. `top_limit` (top-risk assets and
+vulnerabilities): integer, default 10, min 1, max 50.
 
 ---
 
 ## Scan Statistics
 
 ```text
-GET /dashboard/scans
+GET /dashboard/scans?limit=10
 ```
 
-Returns scan execution statistics.
+Returns scan execution statistics. `limit` (recent scans): integer,
+default 10, min 1, max 50.
 
 ---
 
 ## Report Statistics
 
 ```text
-GET /dashboard/reports
+GET /dashboard/reports?limit=10
 ```
 
-Returns report-related metrics.
+Returns report-related metrics. `limit` (recent reports): integer,
+default 10, min 1, max 50.
 
 ---
 
@@ -337,27 +444,34 @@ Returns report-related metrics.
 GET /dashboard/ai
 ```
 
-Returns AI recommendation metrics.
+Returns AI recommendation metrics. No query parameters.
 
 ---
 
 # Response Model
 
-Typical dashboard response:
+Every dashboard endpoint uses the platform's existing standardized
+envelope (`app.api.responses.api_response.SuccessResponse`), consistent
+with every other implemented module — not a bespoke dashboard-only
+envelope. Each response's `data` payload includes its own `generated_at`
+aggregation timestamp:
 
 ```json
 {
-    "generated_at": "2026-07-10T10:00:00Z",
-    "summary": {
+    "success": true,
+    "data": {
+        "generated_at": "2026-07-12T10:00:00Z",
         "total_assets": 125,
-        "total_vulnerabilities": 648,
-        "critical_vulnerabilities": 18,
-        "overall_risk": "High"
-    }
+        "unique_vulnerability_count": 648,
+        "critical_vulnerability_count": 18,
+        "overall_risk_level": "HIGH",
+        "...": "..."
+    },
+    "error": null
 }
 ```
 
-The response model should remain stable across frontend implementations.
+The response model remains stable across frontend implementations.
 
 ---
 
@@ -495,53 +609,74 @@ These enhancements should integrate without modifying existing API contracts.
 
 # Testing Requirements
 
-## Unit Tests
+## Repository Tests (`tests/repositories/test_dashboard_repository.py`, 16 tests)
 
-* Metrics Aggregator
-* Dashboard Service
-* Response Builder
+Empty-database aggregates, total counts, scan status grouping, vulnerability
+severity grouping (including an unrecognized "unknown" value), asset
+risk-level distribution scoped to the worst-per-asset population, top-risk
+asset ranking with deterministic tie-breaking, top-risk vulnerability
+ranking plus affected-asset counts, report format/latest-timestamp
+aggregation, AI recommendation grouping by provider/model/severity,
+freshness-based remediation coverage (current vs. stale vs. missing), and a
+structural check that no dashboard query adds/dirties session state.
 
----
+## Service Tests (`tests/services/test_dashboard_service.py`, 17 tests)
 
-## Integration Tests
+Empty-state responses for all seven endpoints; authoritative-source
+separation (severity from `Vulnerability`, never from `RiskAssessment`;
+asset risk vs. vulnerability risk never conflated); worst-per-asset
+high-risk counting; stale-recommendation exclusion; zero-denominator
+coverage; report statistics sourced from metadata; recent-scan projections
+using real persisted `started_at`/`completed_at`/`execution_duration`
+fields; terminal-scan-only success rate; deterministic repeated responses
+for identical persisted state.
 
-* Repository aggregation
-* Multi-module data aggregation
-* Summary generation
-* Performance validation
+## Schema Tests (`tests/services/test_dashboard_schemas.py`, 10 tests)
 
----
+Valid and empty-state construction, negative count rejection, risk score
+bounds (0.0–10.0) rejection, invalid enum rejection, invalid UUID
+rejection, invalid datetime rejection.
 
-## API Tests
+## API Tests (`tests/api/test_dashboard_api.py`, 21 tests)
 
-* Summary endpoint
-* Asset statistics
-* Vulnerability statistics
-* Risk statistics
-* Scan statistics
-* Report statistics
-* AI statistics
+All seven endpoints return HTTP 200 (never 404) on an empty database and
+reflect persisted state once populated; `limit`/`top_limit` bounds
+(minimum, maximum, non-numeric) rejected with 422; no internal path,
+credential, or configuration exposure in any response body; POST rejected
+with 405 on GET-only routes; dashboard reads never create data.
 
-All APIs must be validated using Postman.
+## Integration Test (`tests/services/test_dashboard_integration.py`, 1 test)
+
+A single end-to-end flow exercising the real repository/service/API
+boundaries (`DashboardService` is never mocked): Module 05 findings across
+two distinct vulnerability identities → Module 06 risk calculation →
+Module 07 one current and one deliberately stale AI recommendation →
+Module 08 report generation via the real REST API → all seven Module 09
+dashboard endpoints, asserting vulnerability-identity counts, finding
+counts, severity distribution, risk distribution, top-risk rankings,
+freshness-based coverage, and report/scan/asset statistics all match the
+seeded, deliberately non-uniform data.
+
+All APIs are directly testable via the existing FastAPI `TestClient`-backed
+suite above; no separate Postman collection artifact was produced for this
+increment.
 
 ---
 
 # Definition of Done
 
-The Dashboard APIs module is complete only when:
+The Dashboard APIs module is complete:
 
-* Dashboard Service implemented
-* Metrics Aggregator implemented
-* Response models implemented
-* REST APIs completed
-* Optimized aggregation queries implemented
-* Unit tests passing
-* Integration tests passing
-* API tests completed
-* Documentation updated
-* Git commit created according to project standards
-
-Only after meeting all criteria may development proceed to the Audit Logging module.
+* Dashboard Service implemented (`app/services/dashboard_service.py`)
+* Dashboard Repository implemented (`app/repositories/dashboard_repository.py`)
+* Response models implemented (`app/schemas/dashboard.py`)
+* REST APIs completed — all seven documented endpoints
+* Aggregation occurs in SQL (`COUNT`, `GROUP BY`, window-function ranking);
+  no full-table Python counting, no N+1 query pattern
+* 65 new tests added (16 repository + 17 service + 10 schema + 21 API + 1
+  integration); complete backend regression: 449 passed, 0 failed
+  (384-test baseline + 65), verified on Python 3.12.13 and 3.14.6
+* Documentation updated (this file)
 
 ---
 

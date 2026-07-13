@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.api.dependencies.audit import get_audit_context, get_audit_service
 from app.api.dependencies.database import get_db
 from app.api.responses.api_response import SuccessResponse
+from app.audit.context import AuditContext
 from app.repositories.ai_recommendation_repository import AIRecommendationRepository
 from app.repositories.asset_repository import AssetRepository
 from app.repositories.network_service_repository import NetworkServiceRepository
@@ -19,12 +21,16 @@ from app.schemas.report import (
     ReportListResponse,
     ReportResponse,
 )
+from app.services.audit_service import AuditService
 from app.services.report_service import ReportService
 
 router = APIRouter()
 
 
-def get_report_service(db: Session = Depends(get_db)) -> ReportService:
+def get_report_service(
+    db: Session = Depends(get_db),
+    audit_service: AuditService = Depends(get_audit_service),
+) -> ReportService:
     """Dependency to inject a fully constructed ReportService into routes."""
     return ReportService(
         session=db,
@@ -36,6 +42,7 @@ def get_report_service(db: Session = Depends(get_db)) -> ReportService:
         network_service_repository=NetworkServiceRepository(db),
         scan_finding_repository=ScanFindingRepository(db),
         ai_recommendation_repository=AIRecommendationRepository(db),
+        audit_service=audit_service,
     )
 
 
@@ -48,9 +55,10 @@ def get_report_service(db: Session = Depends(get_db)) -> ReportService:
 def generate_report(
     request: GenerateReportRequest,
     service: ReportService = Depends(get_report_service),
+    audit_context: AuditContext = Depends(get_audit_context),
 ) -> dict:
     """Generate a new immutable PDF report for a scan's current assessment state."""
-    report = service.generate_report(request.scan_id)
+    report = service.generate_report(request.scan_id, audit_context=audit_context)
     return {"data": ReportResponse.model_validate(report)}
 
 
@@ -92,6 +100,7 @@ def get_report(
 def download_report(
     report_id: uuid.UUID,
     service: ReportService = Depends(get_report_service),
+    audit_context: AuditContext = Depends(get_audit_context),
 ) -> FileResponse:
     """Download the generated PDF report.
 
@@ -99,7 +108,7 @@ def download_report(
     server-generated file name and the configured storage root; no
     client-supplied path or filename is ever used.
     """
-    file_path = service.get_report_file_path(report_id)
+    file_path = service.get_report_file_path(report_id, audit_context=audit_context)
     download_name = f"avap-report-{report_id}.pdf"
     return FileResponse(
         path=file_path,
@@ -116,6 +125,7 @@ def download_report(
 def delete_report(
     report_id: uuid.UUID,
     service: ReportService = Depends(get_report_service),
+    audit_context: AuditContext = Depends(get_audit_context),
 ) -> None:
     """Delete a report's metadata and its associated stored file."""
-    service.delete_report(report_id)
+    service.delete_report(report_id, audit_context=audit_context)

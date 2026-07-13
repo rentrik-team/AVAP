@@ -8,7 +8,9 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
+from app.audit.context import AuditContext
 from app.core.config import Settings, get_settings
+from app.core.enums import AuditEventCategory, AuditEventType, AuditOutcome, AuditResourceType
 from app.core.exceptions import (
     InsufficientReportDataException,
     NotFoundException,
@@ -26,6 +28,7 @@ from app.repositories.risk_repository import RiskRepository
 from app.repositories.scan_finding_repository import ScanFindingRepository
 from app.repositories.scan_repository import ScanRepository
 from app.repositories.vulnerability_repository import VulnerabilityRepository
+from app.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +54,7 @@ class ReportService:
         network_service_repository: NetworkServiceRepository,
         scan_finding_repository: ScanFindingRepository,
         ai_recommendation_repository: AIRecommendationRepository,
+        audit_service: AuditService,
         settings: Settings | None = None,
     ):
         self.session = session
@@ -62,6 +66,7 @@ class ReportService:
         self.network_service_repository = network_service_repository
         self.scan_finding_repository = scan_finding_repository
         self.ai_recommendation_repository = ai_recommendation_repository
+        self.audit_service = audit_service
         self.settings = settings or get_settings()
 
     def _storage_root(self) -> Path:
@@ -69,13 +74,16 @@ class ReportService:
         root.mkdir(parents=True, exist_ok=True)
         return root
 
-    def generate_report(self, scan_id: uuid.UUID) -> Report:
+    def generate_report(
+        self, scan_id: uuid.UUID, audit_context: AuditContext | None = None
+    ) -> Report:
         """Generate a new immutable report for a scan's current assessment state.
 
         Every call renders and persists a brand new report; existing reports
         for the same scan are never overwritten or deleted, preserving full
         report history.
         """
+        context = audit_context or AuditContext.system()
         scan_job = self.scan_repository.get_by_id(scan_id)
         if not scan_job:
             raise NotFoundException(f"Scan job with ID {scan_id} not found.")
@@ -155,14 +163,43 @@ class ReportService:
                 generated_at=generated_at,
             )
             self.report_repository.create(report)
+
+            # Shared transaction: an audit persistence failure here rolls
+            # back the report metadata row too (the orphan-file cleanup
+            # below still runs), rather than reporting a false SUCCESS.
+            self.audit_service.append_event(
+                event_type=AuditEventType.REPORT_GENERATED,
+                category=AuditEventCategory.REPORT,
+                outcome=AuditOutcome.SUCCESS,
+                context=context,
+                resource_type=AuditResourceType.REPORT,
+                resource_id=report.id,
+                scan_id=scan_id,
+                metadata={
+                    "format": report.format,
+                    "vulnerability_count": report.vulnerability_count,
+                    "ai_recommendations_included": report.ai_recommendations_included,
+                    "file_size_bytes": report.file_size_bytes,
+                },
+            )
             self.session.commit()
-        except Exception:
+        except Exception as exc:
             self.session.rollback()
             if final_path_published:
                 # Metadata persistence failed after the file was published;
                 # remove the orphaned file rather than leaving an untracked
                 # artifact with no corresponding database record.
                 final_path.unlink(missing_ok=True)
+            self.audit_service.record_failure_safely(
+                session=self.session,
+                event_type=AuditEventType.REPORT_GENERATION_FAILED,
+                category=AuditEventCategory.REPORT,
+                context=context,
+                resource_type=AuditResourceType.SCAN,
+                resource_id=scan_id,
+                scan_id=scan_id,
+                metadata={"failure_category": type(exc).__name__},
+            )
             raise
 
         logger.info(
@@ -200,9 +237,15 @@ class ReportService:
         """Retrieve a paginated, optionally scan-filtered list of report metadata."""
         return self.report_repository.get_all(skip=skip, limit=limit, scan_id=scan_id)
 
-    def get_report_file_path(self, report_id: uuid.UUID) -> Path:
+    def get_report_file_path(
+        self, report_id: uuid.UUID, audit_context: AuditContext | None = None
+    ) -> Path:
         """Resolve the physical file path for a report, verifying it remains
         inside the configured storage root and actually exists on disk.
+
+        This is the exclusive orchestration point for report downloads;
+        the audit event is recorded here (never the file path or contents,
+        only the report/scan identifiers).
         """
         report = self.get_report(report_id)
         root = self._storage_root().resolve()
@@ -218,16 +261,51 @@ class ReportService:
                 f"Report file for {report_id} is missing from storage."
             )
 
+        try:
+            self.audit_service.append_event(
+                event_type=AuditEventType.REPORT_DOWNLOADED,
+                category=AuditEventCategory.REPORT,
+                outcome=AuditOutcome.SUCCESS,
+                context=audit_context or AuditContext.system(),
+                resource_type=AuditResourceType.REPORT,
+                resource_id=report.id,
+                scan_id=report.scan_id,
+                metadata={"format": report.format},
+            )
+            self.session.commit()
+        except Exception:
+            self.session.rollback()
+            logger.error(
+                "Audit subsystem failed to record a report download event; "
+                "the download is unaffected.",
+                extra={"report_id": str(report_id)},
+                exc_info=True,
+            )
+
         return candidate
 
-    def delete_report(self, report_id: uuid.UUID) -> None:
+    def delete_report(
+        self, report_id: uuid.UUID, audit_context: AuditContext | None = None
+    ) -> None:
         """Delete report metadata and its associated file."""
         report = self.get_report(report_id)
         root = self._storage_root().resolve()
         file_path = (root / report.file_name).resolve()
+        report_format = report.format
+        scan_id = report.scan_id
 
         try:
             self.report_repository.delete(report)
+            self.audit_service.append_event(
+                event_type=AuditEventType.REPORT_DELETED,
+                category=AuditEventCategory.REPORT,
+                outcome=AuditOutcome.SUCCESS,
+                context=audit_context or AuditContext.system(),
+                resource_type=AuditResourceType.REPORT,
+                resource_id=report_id,
+                scan_id=scan_id,
+                metadata={"format": report_format},
+            )
             self.session.commit()
         except Exception:
             self.session.rollback()

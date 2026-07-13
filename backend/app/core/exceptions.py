@@ -204,3 +204,19 @@ class ReportStorageException(AppException):
             error_code="REPORT_STORAGE_ERROR",
             details=details,
         )
+
+
+class UnsafeAuditMetadataException(AppException):
+    """Raised when audit metadata built by a service violates the audit
+    metadata safety policy (forbidden key, oversized value, excessive
+    nesting, or an unsupported value type). Metadata is always
+    server-generated, so this indicates an integration defect, not
+    untrusted client input; persistence is refused rather than sanitized.
+    """
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            status_code=500,
+            error_code="UNSAFE_AUDIT_METADATA",
+            details=details,
+        )

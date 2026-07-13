@@ -5,10 +5,12 @@ from app.core.enums import ScanStatus, TargetType
 from app.core.exceptions import ConflictException, NotFoundException
 from app.models.scan_job import ScanJob
 from app.models.target import Target
+from app.repositories.audit_repository import AuditRepository
 from app.repositories.scan_repository import ScanRepository
 from app.repositories.target_repository import TargetRepository
 from app.scanners.interfaces import IScannerEngine
 from app.schemas.scan import CreateScanRequest
+from app.services.audit_service import AuditService
 from app.services.scan_service import ScanService
 
 
@@ -28,7 +30,8 @@ def scan_service(db_session):
     scan_repo = ScanRepository(db_session)
     target_repo = TargetRepository(db_session)
     scanner_engine = MockScannerEngine()
-    return ScanService(scan_repo, target_repo, scanner_engine)
+    audit_service = AuditService(AuditRepository(db_session))
+    return ScanService(scan_repo, target_repo, audit_service, scanner_engine)
 
 
 @pytest.fixture
@@ -86,6 +89,7 @@ def test_delete_scan(scan_service, test_target):
     scan_service_no_engine = ScanService(
         scan_repository=scan_service.scan_repository,
         target_repository=scan_service.target_repository,
+        audit_service=scan_service.audit_service,
         scanner_engine=None
     )
     request = CreateScanRequest(target_id=test_target.id, scan_profile="full")
