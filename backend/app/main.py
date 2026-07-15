@@ -36,15 +36,17 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # CORS configuration. No authentication/cookies exist yet (see
-    # ai_contract.md — deferred to a future phase), so credentialed
-    # cross-origin requests are not a concern; allow_credentials=True
-    # combined with a wildcard origin is a contradictory, browser-rejected
-    # configuration and must not be reintroduced without a concrete origin
-    # allowlist. Restrict allow_origins before the frontend phase begins.
+    # CORS configuration. The frontend deploys separately from this API (see
+    # frontend/frontend.md), so its origin(s) must be explicitly allowlisted
+    # via CORS_ALLOWED_ORIGINS rather than a wildcard. No authentication/
+    # cookies exist yet (see ai_contract.md — deferred to a future phase),
+    # so credentialed cross-origin requests are not a concern;
+    # allow_credentials=True combined with a wildcard or multi-origin
+    # allowlist is a contradictory/insecure configuration and must not be
+    # reintroduced without re-evaluating this alongside real authentication.
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.cors_allowed_origins_list,
         allow_credentials=False,
         allow_methods=["*"],
         allow_headers=["*"],

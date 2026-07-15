@@ -1,0 +1,324 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-sans);
+
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-destructive-bg: var(--destructive-bg);
+  --color-destructive-border: var(--destructive-border);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+
+  /* Security severity / risk-level semantics — immutable across the app.
+     RiskLevel (app.core.enums.RiskLevel) and Vulnerability.severity_rating
+     share the same five-value taxonomy, so both severity and risk badges
+     render through this one palette (design_system.md §5). Never reuse
+     --color-primary (purple) for these — purple is a brand/navigation
+     accent, not a severity signal (design_system.md §2.3). Each severity
+     carries three tokens (foreground/background/border), per §21. */
+  --color-severity-critical: var(--severity-critical);
+  --color-severity-critical-bg: var(--severity-critical-bg);
+  --color-severity-critical-border: var(--severity-critical-border);
+  --color-severity-high: var(--severity-high);
+  --color-severity-high-bg: var(--severity-high-bg);
+  --color-severity-high-border: var(--severity-high-border);
+  --color-severity-medium: var(--severity-medium);
+  --color-severity-medium-bg: var(--severity-medium-bg);
+  --color-severity-medium-border: var(--severity-medium-border);
+  --color-severity-low: var(--severity-low);
+  --color-severity-low-bg: var(--severity-low-bg);
+  --color-severity-low-border: var(--severity-low-border);
+  --color-severity-informational: var(--severity-informational);
+  --color-severity-informational-bg: var(--severity-informational-bg);
+  --color-severity-informational-border: var(--severity-informational-border);
+  --color-severity-unknown: var(--severity-unknown);
+  --color-severity-unknown-bg: var(--severity-unknown-bg);
+  --color-severity-unknown-border: var(--severity-unknown-border);
+
+  /* General UI status semantics (operational, not security severity) —
+     used for scan lifecycle status, not vulnerability/risk badges
+     (design_system.md §6). */
+  --color-success: var(--success);
+  --color-success-bg: var(--success-bg);
+  --color-warning: var(--warning);
+  --color-warning-bg: var(--warning-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+
+  /* Radius scale — fixed px values per design_system.md §9, not a
+     proportional multiplier scale. */
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 24px;
+  --radius-full: 9999px;
+
+  /* Typography scale — design_system.md §7. Applied to structural text
+     (page titles, card titles); body copy uses Tailwind's default text-sm
+     which already matches the "Body" spec (14px/22px/400). */
+  --text-display-lg: 48px;
+  --text-display-lg--line-height: 56px;
+  --text-display-lg--font-weight: 650;
+  --text-display-lg--letter-spacing: -0.035em;
+  --text-display: 40px;
+  --text-display--line-height: 48px;
+  --text-display--font-weight: 650;
+  --text-display--letter-spacing: -0.03em;
+  --text-h1: 32px;
+  --text-h1--line-height: 40px;
+  --text-h1--font-weight: 650;
+  --text-h1--letter-spacing: -0.025em;
+  --text-h2: 24px;
+  --text-h2--line-height: 32px;
+  --text-h2--font-weight: 650;
+  --text-h2--letter-spacing: -0.02em;
+  --text-h3: 20px;
+  --text-h3--line-height: 28px;
+  --text-h3--font-weight: 600;
+  --text-h3--letter-spacing: -0.015em;
+  --text-title: 16px;
+  --text-title--line-height: 24px;
+  --text-title--font-weight: 600;
+  --text-caption: 12px;
+  --text-caption--line-height: 18px;
+  --text-caption--font-weight: 500;
+  --text-micro: 11px;
+  --text-micro--line-height: 16px;
+  --text-micro--font-weight: 550;
+  --text-micro--letter-spacing: 0.01em;
+}
+
+:root {
+  /* Neutral light palette — design_system.md §4.3 */
+  --background: #f1f3f8; /* neutral-100: page background */
+  --foreground: #111827; /* neutral-900: primary text */
+  --card: #ffffff; /* neutral-0: primary surface */
+  --card-foreground: #111827;
+  --popover: #ffffff;
+  --popover-foreground: #111827;
+
+  /* Purple brand accent — primary actions, active nav, focus, selection
+     (design_system.md §4.1: purple-600 primary / purple-700 hover) */
+  --primary: #7c3aed;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f8f9fc; /* neutral-50 */
+  --secondary-foreground: #374151; /* neutral-700 */
+
+  --muted: #f8f9fc; /* neutral-50 */
+  --muted-foreground: #6b7280; /* neutral-500: secondary text */
+
+  --accent: #f7f3ff; /* purple-50: primary-subtle */
+  --accent-foreground: #5b21b6; /* purple-800 */
+
+  /* Error / destructive — design_system.md §6 Error */
+  --destructive: #b42318;
+  --destructive-foreground: #ffffff;
+  --destructive-bg: #fef3f2;
+  --destructive-border: #fecdca;
+
+  --border: #e6e8f0; /* neutral-200, matches §10 light border */
+  --input: #e6e8f0;
+  --ring: #7c3aed;
+
+  --chart-1: #7c3aed;
+  --chart-2: #4f46e5;
+  --chart-3: #a855f7;
+  --chart-4: #6366f1;
+  --chart-5: #c4b5fd;
+
+  --radius: 1rem;
+
+  --sidebar: #ffffff;
+  --sidebar-foreground: #111827;
+  --sidebar-primary: #7c3aed;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f7f3ff;
+  --sidebar-accent-foreground: #5b21b6;
+  --sidebar-border: #e6e8f0;
+  --sidebar-ring: #7c3aed;
+
+  /* Security severity color system (light) — design_system.md §5, exact tokens */
+  --severity-critical: #b42318;
+  --severity-critical-bg: #fef3f2;
+  --severity-critical-border: #fecdca;
+  --severity-high: #c4320a;
+  --severity-high-bg: #fff4ed;
+  --severity-high-border: #ffd6ae;
+  --severity-medium: #b54708;
+  --severity-medium-bg: #fffaeb;
+  --severity-medium-border: #fedf89;
+  --severity-low: #175cd3;
+  --severity-low-bg: #eff8ff;
+  --severity-low-border: #b2ddff;
+  --severity-informational: #475467;
+  --severity-informational-bg: #f2f4f7;
+  --severity-informational-border: #d0d5dd;
+  /* "unknown" is a frontend-only bucket (unrecognized backend severity
+     string) with no entry in design_system.md §5 — mapped to the same
+     neutral treatment as Informational rather than inventing a new color. */
+  --severity-unknown: #475467;
+  --severity-unknown-bg: #f2f4f7;
+  --severity-unknown-border: #d0d5dd;
+
+  /* Operational status colors (light) — design_system.md §6, distinct from severity */
+  --success: #027a48;
+  --success-bg: #ecfdf3;
+  --warning: #b54708;
+  --warning-bg: #fffaeb;
+  --info: #175cd3;
+  --info-bg: #eff8ff;
+
+  /* Elevation — design_system.md §11 */
+  --shadow-xs: 0 1px 2px rgba(16, 24, 40, 0.04);
+  --shadow-sm: 0 1px 3px rgba(16, 24, 40, 0.06), 0 1px 2px rgba(16, 24, 40, 0.03);
+  --shadow-md: 0 8px 24px rgba(36, 24, 64, 0.08);
+  --shadow-lg: 0 20px 50px rgba(36, 24, 64, 0.12);
+}
+
+.dark {
+  /* Dark palette — design_system.md §4.4, deliberately not light-theme inverted */
+  --background: #090a0f; /* dark-950: main background */
+  --foreground: #eaecf2; /* dark-100: primary text */
+  --card: #141720; /* dark-850: primary surface */
+  --card-foreground: #eaecf2;
+  --popover: #141720;
+  --popover-foreground: #eaecf2;
+
+  /* Purple accents brighten slightly in dark mode for contrast (§4.4) */
+  --primary: #8b5cf6; /* purple-500 */
+  --primary-foreground: #ffffff;
+
+  --secondary: #1a1e29; /* dark-800: elevated surface */
+  --secondary-foreground: #b2b8c5; /* dark-300 */
+
+  --muted: #0f1118; /* dark-900: secondary background */
+  --muted-foreground: #8d94a5; /* dark-400: muted text */
+
+  --accent: #1a1e29;
+  --accent-foreground: #c9b8f7;
+
+  --destructive: #fda29b;
+  --destructive-foreground: #141720;
+  --destructive-bg: rgba(217, 45, 32, 0.12);
+  --destructive-border: rgba(240, 68, 56, 0.3);
+
+  --border: #252a38; /* dark-700, matches §10 dark border */
+  --input: #252a38;
+  --ring: #8b5cf6;
+
+  --chart-1: #a78bfa;
+  --chart-2: #818cf8;
+  --chart-3: #c4b5fd;
+  --chart-4: #7c6ae8;
+  --chart-5: #4c1d95;
+
+  --sidebar: #141720;
+  --sidebar-foreground: #eaecf2;
+  --sidebar-primary: #8b5cf6;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #1a1e29;
+  --sidebar-accent-foreground: #c9b8f7;
+  --sidebar-border: #252a38;
+  --sidebar-ring: #8b5cf6;
+
+  /* Security severity color system (dark) — design_system.md §5, exact tokens */
+  --severity-critical: #fda29b;
+  --severity-critical-bg: rgba(217, 45, 32, 0.12);
+  --severity-critical-border: rgba(240, 68, 56, 0.3);
+  --severity-high: #fdb022;
+  --severity-high-bg: rgba(224, 79, 22, 0.12);
+  --severity-high-border: rgba(247, 144, 9, 0.3);
+  --severity-medium: #fec84b;
+  --severity-medium-bg: rgba(247, 144, 9, 0.12);
+  --severity-medium-border: rgba(247, 144, 9, 0.28);
+  --severity-low: #84caff;
+  --severity-low-bg: rgba(46, 144, 250, 0.12);
+  --severity-low-border: rgba(46, 144, 250, 0.28);
+  --severity-informational: #b2b8c5;
+  --severity-informational-bg: rgba(152, 162, 179, 0.1);
+  --severity-informational-border: rgba(152, 162, 179, 0.24);
+  --severity-unknown: #b2b8c5;
+  --severity-unknown-bg: rgba(152, 162, 179, 0.1);
+  --severity-unknown-border: rgba(152, 162, 179, 0.24);
+
+  /* Operational status colors (dark) — design_system.md doesn't give
+     separate dark values for §6, so these follow the same brightened/
+     translucent treatment as the severity dark tokens for consistency. */
+  --success: #75e0a7;
+  --success-bg: rgba(2, 122, 72, 0.16);
+  --warning: #fec84b;
+  --warning-bg: rgba(247, 144, 9, 0.12);
+  --info: #84caff;
+  --info-bg: rgba(46, 144, 250, 0.12);
+
+  /* Elevation (dark) — design_system.md §11: dark mode relies more on
+     surface differentiation/borders than shadows, so these are deliberately
+     more restrained than the light-mode values. */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.16);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.24), 0 1px 2px rgba(0, 0, 0, 0.14);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.32);
+  --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.4);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

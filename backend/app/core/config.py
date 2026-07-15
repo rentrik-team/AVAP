@@ -27,6 +27,13 @@ class Settings(BaseSettings):
     debug: bool = False
     api_v1_prefix: str = "/api/v1"
 
+    # CORS. Comma-separated list of allowed browser origins for the
+    # separately-deployed Next.js frontend. No authentication/cookies exist
+    # yet, so this deliberately pairs with allow_credentials=False; do not
+    # combine a wildcard or multi-origin allowlist with credentialed
+    # requests once auth is introduced.
+    cors_allowed_origins: str = "http://localhost:3000"
+
     # Database
     database_url: str | None = None
     postgres_host: str = "localhost"
@@ -91,6 +98,19 @@ class Settings(BaseSettings):
                 f"Invalid environment: {value}. Allowed: {', '.join(sorted(allowed))}"
             )
         return lower_value
+
+    @property
+    def cors_allowed_origins_list(self) -> list[str]:
+        """Parse the comma-separated CORS allowlist into individual origins.
+
+        Blank entries (trailing commas, empty configuration) are dropped so
+        an empty string is never passed to CORSMiddleware as an origin.
+        """
+        return [
+            origin.strip()
+            for origin in self.cors_allowed_origins.split(",")
+            if origin.strip()
+        ]
 
     @property
     def effective_database_url(self) -> str:
