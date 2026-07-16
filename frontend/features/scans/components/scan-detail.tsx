@@ -2,6 +2,7 @@
 
 import { useQueryClient } from "@tanstack/react-query";
 import { Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
@@ -13,6 +14,7 @@ import { PageHeader } from "@/components/shared/page-header";
 import { ScanStatusBadge } from "@/components/shared/scan-status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { dashboardKeys } from "@/features/dashboard/hooks/query-keys";
+import { ScanReportsSection } from "@/features/reports/components/scan-reports-section";
 import { ScanRiskSection } from "@/features/risk/components/scan-risk-section";
 import { DeleteScanDialog } from "@/features/scans/components/delete-scan-dialog";
 import { scanKeys } from "@/features/scans/hooks/query-keys";
@@ -154,6 +156,15 @@ export function ScanDetail({ scanId }: { scanId: string }) {
       </Card>
 
       <ScanRiskSection scanId={scan.scan_id} scanStatus={scan.status} />
+
+      <ScanReportsSection scanId={scan.scan_id} scanStatus={scan.status} />
+
+      <Link
+        href={`/audit?scan_id=${scan.scan_id}`}
+        className="w-fit text-sm text-primary hover:underline"
+      >
+        View audit history for this scan →
+      </Link>
 
       <DeleteScanDialog
         scan={scan}

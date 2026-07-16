@@ -1,15 +1,6 @@
 "use client";
 
-import { ChevronDown } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { FilterMenu } from "@/components/shared/filter-menu";
 import type { RiskLevel, RiskListFilters, RiskScope } from "@/features/risk/types/risk";
 
 const SCOPE_OPTIONS: { label: string; value: RiskScope | "" }[] = [
@@ -28,42 +19,6 @@ const LEVEL_OPTIONS: { label: string; value: RiskLevel | "" }[] = [
   { label: "Low", value: "LOW" },
   { label: "Informational", value: "INFORMATIONAL" },
 ];
-
-function FilterMenu<T extends string>({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: { label: string; value: T | "" }[];
-  value: T | "";
-  onChange: (value: T | "") => void;
-}) {
-  const selected = options.find((option) => option.value === value) ?? options[0];
-  return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="outline" aria-label={label} className="justify-between">
-          {selected.label}
-          <ChevronDown className="size-4 text-muted-foreground" aria-hidden="true" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        <DropdownMenuRadioGroup
-          value={value}
-          onValueChange={(next) => onChange(next as T | "")}
-        >
-          {options.map((option) => (
-            <DropdownMenuRadioItem key={option.value || "all"} value={option.value}>
-              {option.label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-}
 
 export function RiskFilterBar({
   scope,

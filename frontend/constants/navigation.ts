@@ -26,15 +26,14 @@ export interface NavSection {
 
 /**
  * Navigation taxonomy aligned to existing backend resources (Modules
- * 01–10). Overview (Module 09), Targets (Module 01), Scans (Module 02),
- * Assets/Vulnerabilities (Module 05), and Risk (Module 06) are
- * implemented; the rest are shown as deliberately disabled upcoming
- * sections rather than fake pages, per the phased frontend delivery plan.
+ * 01–10). Every module with a genuine "browse a collection" endpoint now
+ * has a route: Overview (09), Targets (01), Scans (02), Assets/
+ * Vulnerabilities (05), Risk (06), Reports (08), Audit Events (10).
  *
  * AI Remediation (Module 07) is intentionally NOT given its own nav entry
- * or route in this phase: there is no `GET /ai/recommendations` collection
- * endpoint to list, only per-assessment retrieval — a standalone page would
- * have nothing to browse without first knowing a specific VULNERABILITY-scope
+ * or route: there is no `GET /ai/recommendations` collection endpoint to
+ * list, only per-assessment retrieval — a standalone page would have
+ * nothing to browse without first knowing a specific VULNERABILITY-scope
  * assessment id. AI remediation is reachable from the Risk page instead,
  * via the "Remediation" action on VULNERABILITY-scope rows.
  */
@@ -71,12 +70,12 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     label: "Outputs",
-    items: [{ label: "Reports", href: "/reports", icon: FileText, enabled: false }],
+    items: [{ label: "Reports", href: "/reports", icon: FileText, enabled: true }],
   },
   {
     label: "System",
     items: [
-      { label: "Audit Events", href: "/audit", icon: ScrollText, enabled: false },
+      { label: "Audit Events", href: "/audit", icon: ScrollText, enabled: true },
     ],
   },
 ];
