@@ -20,7 +20,13 @@ export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
             </h2>
           )}
           {section.items.map((item) => {
-            const isActive = pathname === item.href;
+            // "/" only matches exactly; other items also match their own
+            // sub-routes (e.g. "/scans/{id}" under "/scans") now that
+            // Targets/Scans introduce nested routes.
+            const isActive =
+              item.href === "/"
+                ? pathname === "/"
+                : pathname === item.href || pathname.startsWith(`${item.href}/`);
             const content = (
               <span
                 className={cn(

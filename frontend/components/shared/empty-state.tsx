@@ -4,10 +4,13 @@ export function EmptyState({
   icon: Icon,
   title,
   description,
+  action,
 }: {
   icon: LucideIcon;
   title: string;
   description?: string;
+  /** Optional valid action (design_system.md §24) — e.g. a "Create Target" button. */
+  action?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 py-10 text-center">
@@ -18,6 +21,7 @@ export function EmptyState({
       {description && (
         <p className="max-w-xs text-sm text-muted-foreground">{description}</p>
       )}
+      {action && <div className="mt-2">{action}</div>}
     </div>
   );
 }

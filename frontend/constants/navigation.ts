@@ -26,9 +26,17 @@ export interface NavSection {
 
 /**
  * Navigation taxonomy aligned to existing backend resources (Modules
- * 01–10). Only Overview (the Module 09 dashboard) is implemented in this
- * phase; the rest are shown as deliberately disabled upcoming sections
- * rather than fake pages, per the phased frontend delivery plan.
+ * 01–10). Overview (Module 09), Targets (Module 01), Scans (Module 02),
+ * Assets/Vulnerabilities (Module 05), and Risk (Module 06) are
+ * implemented; the rest are shown as deliberately disabled upcoming
+ * sections rather than fake pages, per the phased frontend delivery plan.
+ *
+ * AI Remediation (Module 07) is intentionally NOT given its own nav entry
+ * or route in this phase: there is no `GET /ai/recommendations` collection
+ * endpoint to list, only per-assessment retrieval — a standalone page would
+ * have nothing to browse without first knowing a specific VULNERABILITY-scope
+ * assessment id. AI remediation is reachable from the Risk page instead,
+ * via the "Remediation" action on VULNERABILITY-scope rows.
  */
 export const NAV_SECTIONS: NavSection[] = [
   {
@@ -38,21 +46,21 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Operations",
     items: [
-      { label: "Targets", href: "/targets", icon: Crosshair, enabled: false },
-      { label: "Scans", href: "/scans", icon: Radar, enabled: false },
+      { label: "Targets", href: "/targets", icon: Crosshair, enabled: true },
+      { label: "Scans", href: "/scans", icon: Radar, enabled: true },
     ],
   },
   {
     label: "Security",
     items: [
-      { label: "Assets", href: "/assets", icon: Server, enabled: false },
+      { label: "Assets", href: "/assets", icon: Server, enabled: true },
       {
         label: "Vulnerabilities",
         href: "/vulnerabilities",
         icon: ShieldAlert,
-        enabled: false,
+        enabled: true,
       },
-      { label: "Risk", href: "/risk", icon: Gauge, enabled: false },
+      { label: "Risk", href: "/risk", icon: Gauge, enabled: true },
     ],
   },
   {

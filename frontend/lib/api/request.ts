@@ -19,3 +19,18 @@ export async function requestData<T>(
     throw normalizeApiError(error);
   }
 }
+
+/**
+ * Same error normalization as `requestData`, for endpoints that return
+ * `204 No Content` (no envelope body) — e.g. DELETE /targets/{id},
+ * DELETE /scans/{id}.
+ */
+export async function requestVoid(
+  requestPromise: Promise<AxiosResponse<unknown>>
+): Promise<void> {
+  try {
+    await requestPromise;
+  } catch (error) {
+    throw normalizeApiError(error);
+  }
+}

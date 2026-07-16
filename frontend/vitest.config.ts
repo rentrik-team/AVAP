@@ -9,6 +9,13 @@ export default defineConfig({
     setupFiles: ["./vitest.setup.ts"],
     globals: false,
     css: false,
+    env: {
+      // config/env.ts validates this at module load time (it's a required
+      // public runtime config, not a secret) — every module that imports
+      // lib/api/client.ts transitively needs it defined, even in tests
+      // that never actually issue a request.
+      NEXT_PUBLIC_API_BASE_URL: "http://localhost:8000",
+    },
   },
   resolve: {
     alias: {

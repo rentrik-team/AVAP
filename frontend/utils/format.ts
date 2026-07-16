@@ -25,6 +25,13 @@ export function formatRelativeTime(value: string | Date): string {
   return formatDistanceToNow(date, { addSuffix: true });
 }
 
+/** Capitalizes a free-text backend value (e.g. scan_type "full" -> "Full")
+ * for display without inventing a fixed label map for an open-ended field. */
+export function formatLabel(value: string): string {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 /** Whole-second scan/report execution durations into a compact "1h 5m" form. */
 export function formatDuration(totalSeconds: number | null | undefined): string {
   if (totalSeconds === null || totalSeconds === undefined) {
