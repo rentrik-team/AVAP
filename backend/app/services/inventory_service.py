@@ -119,8 +119,20 @@ class InventoryService:
             self.session.flush()
             return new_service
 
-    def _upsert_vulnerability(self, parsed_vuln: ParsedVulnerability) -> Vulnerability:
-        """Upsert a Vulnerability using name + cve."""
+    def upsert_vulnerability(
+        self, parsed_vuln: ParsedVulnerability, source: str | None = None
+    ) -> Vulnerability:
+        """Upsert a Vulnerability using name + cve.
+
+        Public: reused by AIVulnerabilityDiscoveryService so AI-inferred
+        findings go through the same dedup logic as scanner-parsed ones,
+        rather than a second, divergent implementation.
+
+        Args:
+            parsed_vuln: The vulnerability data to upsert.
+            source: Provenance tag (e.g. "AI_INFERENCE") set only when
+                creating a new row; an existing row's source is left as-is.
+        """
         norm_name = parsed_vuln.name.strip()
         norm_cve = parsed_vuln.cve.strip().upper() if parsed_vuln.cve else None
 
@@ -138,18 +150,23 @@ class InventoryService:
                 severity_rating=parsed_vuln.severity_rating,
                 description=parsed_vuln.description,
                 cve=norm_cve,
+                source=source,
             )
             self.vulnerability_repository.create(new_vuln)
             return new_vuln
 
-    def _create_finding_if_not_exists(
+    def link_finding(
         self,
         scan_id: uuid.UUID,
         asset_id: uuid.UUID,
         vulnerability_id: uuid.UUID | None,
         service_id: uuid.UUID | None,
     ) -> None:
-        """Create a ScanFinding linking the entities, preventing duplicates (handling nulls)."""
+        """Create a ScanFinding linking the entities, preventing duplicates (handling nulls).
+
+        Public: reused by AIVulnerabilityDiscoveryService, see
+        `upsert_vulnerability` above for why.
+        """
         stmt = select(ScanFinding).where(
             ScanFinding.scan_id == scan_id, ScanFinding.asset_id == asset_id
         )
@@ -211,10 +228,10 @@ class InventoryService:
                     if parsed_service.vulnerabilities:
                         for parsed_vuln in parsed_service.vulnerabilities:
                             # 4. Upsert Vulnerability
-                            vuln = self._upsert_vulnerability(parsed_vuln)
+                            vuln = self.upsert_vulnerability(parsed_vuln)
 
                             # 5. Create ScanFinding linking scan, asset, vuln, service
-                            self._create_finding_if_not_exists(
+                            self.link_finding(
                                 scan_id=package.scan_id,
                                 asset_id=asset.id,
                                 vulnerability_id=vuln.id,
@@ -222,7 +239,7 @@ class InventoryService:
                             )
                     else:
                         # Create ScanFinding linking scan, asset, service (without vulnerability)
-                        self._create_finding_if_not_exists(
+                        self.link_finding(
                             scan_id=package.scan_id,
                             asset_id=asset.id,
                             vulnerability_id=None,

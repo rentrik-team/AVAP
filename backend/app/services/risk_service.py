@@ -184,10 +184,11 @@ class RiskService:
         limit: int = 50,
         scope: RiskScope | None = None,
         risk_level: RiskLevel | None = None,
+        scan_id: uuid.UUID | None = None,
     ) -> tuple[Sequence[RiskAssessment], int]:
         """Retrieve a paginated, filtered list of risk assessments."""
         return self.risk_repository.get_all(
-            skip=skip, limit=limit, scope=scope, risk_level=risk_level
+            skip=skip, limit=limit, scope=scope, risk_level=risk_level, scan_id=scan_id
         )
 
     def get_risk_by_asset(

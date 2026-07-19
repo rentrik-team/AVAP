@@ -26,6 +26,11 @@ const STATUS_META: Record<
     textClass: "text-destructive",
     bgClass: "bg-destructive-bg",
   },
+  CANCELLED: {
+    label: "Cancelled",
+    textClass: "text-muted-foreground",
+    bgClass: "bg-muted",
+  },
 };
 
 /** Scan lifecycle status — an operational signal, not a security severity. */

@@ -61,6 +61,9 @@ describe("StartScanMenuItem (via TargetRowActions)", () => {
       completed_at: null,
       execution_duration: null,
       failure_reason: null,
+      output_file_path: null,
+      stdout_log: null,
+      stderr_log: null,
     });
 
     await openMenuAndStartScan();

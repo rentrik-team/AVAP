@@ -44,11 +44,12 @@ def list_risk_assessments(
     limit: int = Query(50, ge=1, le=200, description="Max records to return"),
     scope: RiskScope | None = Query(None, description="Filter by risk scope"),
     risk_level: RiskLevel | None = Query(None, description="Filter by risk level"),
+    scan_id: uuid.UUID | None = Query(None, description="Filter by scan"),
     service: RiskService = Depends(get_risk_service),
 ) -> dict:
     """Retrieve a paginated, filtered list of all persisted risk assessments."""
     items, total = service.get_risk_assessments(
-        skip=skip, limit=limit, scope=scope, risk_level=risk_level
+        skip=skip, limit=limit, scope=scope, risk_level=risk_level, scan_id=scan_id
     )
     responses = [RiskAssessmentResponse.model_validate(item) for item in items]
     return {"data": RiskAssessmentListResponse(risk_assessments=responses, total=total)}

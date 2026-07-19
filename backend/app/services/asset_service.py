@@ -24,10 +24,17 @@ class AssetService:
         hostname: str | None = None,
         port: int | None = None,
         cve: str | None = None,
+        target_id: uuid.UUID | None = None,
     ) -> tuple[Sequence[Asset], int]:
         """Retrieve a paginated, filtered list of assets."""
         return self.repository.get_all(
-            skip=skip, limit=limit, ip=ip, hostname=hostname, port=port, cve=cve
+            skip=skip,
+            limit=limit,
+            ip=ip,
+            hostname=hostname,
+            port=port,
+            cve=cve,
+            target_id=target_id,
         )
 
     def get_asset(self, asset_id: uuid.UUID) -> Asset:

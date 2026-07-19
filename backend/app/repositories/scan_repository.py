@@ -1,7 +1,7 @@
 import uuid
 from collections.abc import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.enums import ScanStatus
@@ -25,21 +25,25 @@ class ScanRepository:
         stmt = select(ScanJob).where(ScanJob.id == scan_id)
         return self.session.execute(stmt).scalar_one_or_none()
 
-    def get_all(self, skip: int = 0, limit: int = 100) -> Sequence[ScanJob]:
-        """Retrieve all scan jobs with pagination."""
-        stmt = (
-            select(ScanJob)
-            .offset(skip)
-            .limit(limit)
-            .order_by(ScanJob.created_at.desc())
-        )
+    def get_all(
+        self,
+        skip: int = 0,
+        limit: int = 100,
+        target_id: uuid.UUID | None = None,
+    ) -> Sequence[ScanJob]:
+        """Retrieve all scan jobs with pagination, optionally scoped to one target."""
+        stmt = select(ScanJob).order_by(ScanJob.created_at.desc())
+        if target_id is not None:
+            stmt = stmt.where(ScanJob.target_id == target_id)
+        stmt = stmt.offset(skip).limit(limit)
         return self.session.execute(stmt).scalars().all()
 
-    def count(self) -> int:
-        """Count total scan jobs."""
-        stmt = select(ScanJob)
-        # Using a simpler count approach compatible with SQLAlchemy 2.0
-        return len(self.session.execute(stmt).scalars().all())
+    def count(self, target_id: uuid.UUID | None = None) -> int:
+        """Count scan jobs, optionally scoped to one target."""
+        stmt = select(func.count(ScanJob.id))
+        if target_id is not None:
+            stmt = stmt.where(ScanJob.target_id == target_id)
+        return self.session.execute(stmt).scalar() or 0
 
     def update(self, scan_job: ScanJob) -> ScanJob:
         """Flush pending changes to an existing scan job, without committing."""
@@ -52,8 +56,15 @@ class ScanRepository:
         self.session.flush()
 
     def get_running_scans_for_target(self, target_id: uuid.UUID) -> Sequence[ScanJob]:
-        """Retrieve all running scans for a specific target."""
+        """Retrieve all active (not yet finished) scans for a specific target.
+
+        Includes PENDING alongside RUNNING: a scan job is created as
+        PENDING and only flips to RUNNING once its background execution
+        thread picks it up, so checking RUNNING alone would let a second
+        scan slip in during that brief window.
+        """
         stmt = select(ScanJob).where(
-            ScanJob.target_id == target_id, ScanJob.status == ScanStatus.RUNNING
+            ScanJob.target_id == target_id,
+            ScanJob.status.in_([ScanStatus.PENDING, ScanStatus.RUNNING]),
         )
         return self.session.execute(stmt).scalars().all()

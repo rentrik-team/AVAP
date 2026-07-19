@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.models.asset import Asset
 from app.models.scan_finding import ScanFinding
+from app.models.scan_job import ScanJob
 from app.models.service import NetworkService
 from app.models.vulnerability import Vulnerability
 
@@ -48,14 +49,15 @@ class AssetRepository:
         hostname: str | None = None,
         port: int | None = None,
         cve: str | None = None,
+        target_id: uuid.UUID | None = None,
     ) -> tuple[Sequence[Asset], int]:
         """Retrieve a paginated, filtered list of assets along with the total count.
 
-        Uses a subquery strategy for join-based filters (port, cve) to avoid
-        GROUP BY issues and ensure PostgreSQL compatibility.
+        Uses a subquery strategy for join-based filters (port, cve, target_id)
+        to avoid GROUP BY issues and ensure PostgreSQL compatibility.
         """
         # Build an ID subquery when join-based filters are needed
-        needs_subquery = port is not None or cve is not None
+        needs_subquery = port is not None or cve is not None or target_id is not None
 
         if needs_subquery:
             # Subquery: select distinct asset IDs matching the join filters
@@ -73,6 +75,15 @@ class AssetRepository:
                         Vulnerability, ScanFinding.vulnerability_id == Vulnerability.id
                     )
                     .where(Vulnerability.cve.ilike(f"%{cve}%"))
+                )
+
+            if target_id is not None:
+                # Asset has no direct target_id — reached only via the scans
+                # run against that target (Target <- ScanJob <- ScanFinding).
+                id_subq = (
+                    id_subq.join(ScanFinding, ScanFinding.asset_id == Asset.id)
+                    .join(ScanJob, ScanFinding.scan_id == ScanJob.id)
+                    .where(ScanJob.target_id == target_id)
                 )
 
             # Add simple column filters to subquery too

@@ -14,7 +14,9 @@ import type {
  * of `apiClient` for scans — hooks never call Axios directly.
  */
 export const scansApi = {
-  getScans: (params: { skip?: number; limit?: number } = {}) =>
+  getScans: (
+    params: { skip?: number; limit?: number; target_id?: string } = {}
+  ) =>
     requestData(
       apiClient.get<ApiSuccessEnvelope<ScanListResponse>>("/scans", { params })
     ),
@@ -31,6 +33,11 @@ export const scansApi = {
 
   createScan: (body: CreateScanRequest) =>
     requestData(apiClient.post<ApiSuccessEnvelope<ScanResponse>>("/scans", body)),
+
+  cancelScan: (scanId: string) =>
+    requestData(
+      apiClient.post<ApiSuccessEnvelope<ScanResponse>>(`/scans/${scanId}/cancel`)
+    ),
 
   deleteScan: (scanId: string) => requestVoid(apiClient.delete(`/scans/${scanId}`)),
 };

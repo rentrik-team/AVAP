@@ -19,6 +19,7 @@ export function useRiskAssessments(
     limit: params.limit ?? 50,
     scope: params.scope,
     risk_level: params.risk_level,
+    scan_id: params.scan_id,
   };
   return useQuery({
     queryKey: riskKeys.list(query),

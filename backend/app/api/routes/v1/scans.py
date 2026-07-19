@@ -60,11 +60,12 @@ def create_scan(
 def list_scans(
     skip: int = Query(0, ge=0, description="Offset for pagination"),
     limit: int = Query(50, ge=1, le=200, description="Max records to return"),
+    target_id: uuid.UUID | None = Query(None, description="Filter to scans of this target"),
     service: ScanService = Depends(get_scan_service),
 ) -> dict:
     """Retrieve a paginated list of all scan jobs."""
-    scans = service.get_all_scans(skip=skip, limit=limit)
-    total = service.count_scans()
+    scans = service.get_all_scans(skip=skip, limit=limit, target_id=target_id)
+    total = service.count_scans(target_id=target_id)
     scan_responses = [ScanResponse.model_validate(s) for s in scans]
     return {"data": ScanListResponse(scans=scan_responses, total=total)}
 
@@ -100,6 +101,26 @@ def get_scan_status(
         updated_at=scan_job.updated_at,
     )
     return {"data": status_response}
+
+
+@router.post(
+    "/{scan_id}/cancel",
+    response_model=SuccessResponse[ScanResponse],
+    summary="Cancel a running scan job",
+)
+def cancel_scan(
+    scan_id: uuid.UUID,
+    service: ScanService = Depends(get_scan_service),
+    audit_context: AuditContext = Depends(get_audit_context),
+) -> dict:
+    """Request cancellation of a currently running scan job.
+
+    The scan job transitions to CANCELLED asynchronously once the
+    background execution thread notices the request; poll
+    GET /scans/{scan_id}/status for the updated state.
+    """
+    scan_job = service.cancel_scan(scan_id, audit_context=audit_context)
+    return {"data": ScanResponse.model_validate(scan_job)}
 
 
 @router.delete(

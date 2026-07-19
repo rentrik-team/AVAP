@@ -22,7 +22,10 @@ import { formatCount } from "@/utils/format";
 
 const PAGE_SIZE = 50;
 
-export function RiskList() {
+/** `scanId`, when given, scopes the list to one scan's risk assessments
+ * (used by the Scan Detail page to surface its vulnerability findings and
+ * their Remediation action) instead of the global platform-wide list. */
+export function RiskList({ scanId }: { scanId?: string } = {}) {
   const [skip, setSkip] = useState(0);
   const [scope, setScope] = useState<RiskScope | "">("");
   const [riskLevel, setRiskLevel] = useState<RiskLevel | "">("");
@@ -51,6 +54,7 @@ export function RiskList() {
     skip,
     limit: PAGE_SIZE,
     ...filters,
+    scan_id: scanId,
   });
 
   function handleFilterChange(next: RiskListFilters) {
@@ -98,7 +102,11 @@ export function RiskList() {
           <EmptyState
             icon={Gauge}
             title="No risk assessments have been calculated yet"
-            description="Risk is calculated explicitly for a completed scan from that scan's detail page. Once calculated, results appear here."
+            description={
+              scanId
+                ? "Risk is calculated once this scan completes. Once calculated, its vulnerability findings and remediation options appear here."
+                : "Risk is calculated explicitly for a completed scan from that scan's detail page. Once calculated, results appear here."
+            }
           />
         )
       ) : (

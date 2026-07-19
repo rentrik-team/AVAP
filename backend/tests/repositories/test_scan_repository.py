@@ -80,18 +80,30 @@ def test_delete_scan(scan_repository, test_target):
 
 
 def test_get_running_scans(scan_repository, test_target):
+    """PENDING counts as active alongside RUNNING: a scan job is created as
+    PENDING and only flips to RUNNING once its background execution thread
+    picks it up, so the duplicate-scan guard must treat both as active to
+    avoid a race where a second scan slips in during that window.
+    """
     scan_job1 = ScanJob(
         target_id=test_target.id, scan_type="full", status=ScanStatus.RUNNING
     )
     scan_job2 = ScanJob(
         target_id=test_target.id, scan_type="quick", status=ScanStatus.PENDING
     )
+    scan_job3 = ScanJob(
+        target_id=test_target.id, scan_type="quick", status=ScanStatus.COMPLETED
+    )
     scan_repository.create(scan_job1)
     scan_repository.create(scan_job2)
+    scan_repository.create(scan_job3)
 
     running_scans = scan_repository.get_running_scans_for_target(test_target.id)
-    assert len(running_scans) == 1
-    assert running_scans[0].status == ScanStatus.RUNNING
+    assert {scan.status for scan in running_scans} == {
+        ScanStatus.RUNNING,
+        ScanStatus.PENDING,
+    }
+    assert len(running_scans) == 2
 
 
 # --- Repository never commits ---

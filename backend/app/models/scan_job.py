@@ -41,6 +41,13 @@ class ScanJob(Base, TimestampMixin):
 
     failure_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Path to the scanner's raw output file (e.g. Nmap XML), populated even
+    # for cancelled/timed-out runs since scanners flush output incrementally.
+    output_file_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
+
+    stdout_log: Mapped[str | None] = mapped_column(Text, nullable=True)
+    stderr_log: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Relationships
     target: Mapped[Target] = relationship(lazy="joined")
 

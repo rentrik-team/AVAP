@@ -96,6 +96,7 @@ class RiskRepository:
         limit: int = 50,
         scope: RiskScope | None = None,
         risk_level: RiskLevel | None = None,
+        scan_id: uuid.UUID | None = None,
     ) -> tuple[Sequence[RiskAssessment], int]:
         """Retrieve a paginated, filtered list of risk assessments."""
         stmt = select(RiskAssessment)
@@ -106,6 +107,8 @@ class RiskRepository:
             filters.append(RiskAssessment.scope == scope)
         if risk_level is not None:
             filters.append(RiskAssessment.risk_level == risk_level)
+        if scan_id is not None:
+            filters.append(RiskAssessment.scan_id == scan_id)
 
         if filters:
             stmt = stmt.where(*filters)

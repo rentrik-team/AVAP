@@ -19,7 +19,13 @@ describe("ScanActivity", () => {
     mockedGetScanStatistics.mockResolvedValue({
       generated_at: "2026-07-15T00:00:00Z",
       total_scans: 0,
-      scans_by_status: { pending: 0, running: 0, completed: 0, failed: 0 },
+      scans_by_status: {
+        pending: 0,
+        running: 0,
+        completed: 0,
+        failed: 0,
+        cancelled: 0,
+      },
       scan_success_rate_percent: 0,
       average_scan_duration_seconds: null,
       recent_scans: [],
@@ -36,7 +42,13 @@ describe("ScanActivity", () => {
     mockedGetScanStatistics.mockResolvedValue({
       generated_at: "2026-07-15T00:00:00Z",
       total_scans: 1,
-      scans_by_status: { pending: 0, running: 1, completed: 0, failed: 0 },
+      scans_by_status: {
+        pending: 0,
+        running: 1,
+        completed: 0,
+        failed: 0,
+        cancelled: 0,
+      },
       scan_success_rate_percent: 0,
       average_scan_duration_seconds: null,
       recent_scans: [

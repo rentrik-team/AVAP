@@ -19,10 +19,13 @@ export function DeleteTargetDialog({
   target,
   open,
   onOpenChange,
+  onDeleted,
 }: {
   target: TargetResponse;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Called after a confirmed deletion — e.g. to navigate away from a detail page. */
+  onDeleted?: () => void;
 }) {
   const { mutate, isPending } = useDeleteTarget();
 
@@ -37,6 +40,7 @@ export function DeleteTargetDialog({
       onSuccess: () => {
         toast.success("Target deleted");
         onOpenChange(false);
+        onDeleted?.();
       },
       onError: (error) => {
         toast.error(error.message);

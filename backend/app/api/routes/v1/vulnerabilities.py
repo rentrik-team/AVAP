@@ -30,11 +30,18 @@ def list_vulnerabilities(
         description="Filter by severity rating (Low, Medium, High, Critical, None)",
     ),
     cve: str | None = Query(None, description="Filter by CVE ID"),
+    target_id: uuid.UUID | None = Query(
+        None, description="Filter to vulnerabilities found via scans of this target"
+    ),
     service: VulnerabilityService = Depends(get_vulnerability_service),
 ) -> dict:
     """Retrieve a paginated, filtered list of all normalized vulnerabilities."""
     items, total = service.get_all_vulnerabilities(
-        skip=skip, limit=limit, severity_rating=severity_rating, cve=cve
+        skip=skip,
+        limit=limit,
+        severity_rating=severity_rating,
+        cve=cve,
+        target_id=target_id,
     )
 
     vulnerability_responses = [

@@ -20,14 +20,18 @@ function scan(overrides: Partial<ScanResponse> = {}): ScanResponse {
     completed_at: null,
     execution_duration: null,
     failure_reason: null,
+    output_file_path: null,
+    stdout_log: null,
+    stderr_log: null,
     ...overrides,
   };
 }
 
 describe("isTerminalScanStatus", () => {
-  it("treats only COMPLETED and FAILED as terminal", () => {
+  it("treats only COMPLETED, FAILED, and CANCELLED as terminal", () => {
     expect(isTerminalScanStatus("COMPLETED")).toBe(true);
     expect(isTerminalScanStatus("FAILED")).toBe(true);
+    expect(isTerminalScanStatus("CANCELLED")).toBe(true);
     expect(isTerminalScanStatus("PENDING")).toBe(false);
     expect(isTerminalScanStatus("RUNNING")).toBe(false);
   });

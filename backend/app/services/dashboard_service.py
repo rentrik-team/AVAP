@@ -49,6 +49,7 @@ _SCAN_STATUS_FIELDS = {
     ScanStatus.RUNNING: "running",
     ScanStatus.COMPLETED: "completed",
     ScanStatus.FAILED: "failed",
+    ScanStatus.CANCELLED: "cancelled",
 }
 
 

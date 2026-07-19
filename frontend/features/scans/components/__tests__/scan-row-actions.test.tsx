@@ -18,6 +18,9 @@ function scan(overrides: Partial<ScanResponse> = {}): ScanResponse {
     completed_at: "2026-07-15T00:05:00Z",
     execution_duration: 300,
     failure_reason: null,
+    output_file_path: null,
+    stdout_log: null,
+    stderr_log: null,
     ...overrides,
   };
 }

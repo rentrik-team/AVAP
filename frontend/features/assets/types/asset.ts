@@ -38,10 +38,13 @@ export interface AssetListResponse {
 
 /** Maps 1:1 to GET /assets query parameters (app/api/routes/v1/assets.py).
  * `ip` is an exact match server-side; `hostname`/`cve` are case-insensitive
- * substrings; `port` is exact. */
+ * substrings; `port` is exact. `target_id` scopes to assets discovered via
+ * scans of that target (Asset has no direct target_id — the backend joins
+ * through scan_findings/scan_jobs). */
 export interface AssetListFilters {
   ip?: string;
   hostname?: string;
   port?: number;
   cve?: string;
+  target_id?: string;
 }

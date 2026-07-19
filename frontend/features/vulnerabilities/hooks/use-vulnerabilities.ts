@@ -18,6 +18,7 @@ export function useVulnerabilities(
     limit: params.limit ?? 50,
     severity_rating: params.severity_rating,
     cve: params.cve,
+    target_id: params.target_id,
   };
   return useQuery({
     queryKey: vulnerabilityKeys.list(query),

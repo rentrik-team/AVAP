@@ -61,7 +61,13 @@ vi.mock("@/features/dashboard/api/dashboard-api", () => ({
     getScanStatistics: vi.fn().mockResolvedValue({
       generated_at: "2026-07-15T00:00:00Z",
       total_scans: 1,
-      scans_by_status: { pending: 0, running: 0, completed: 1, failed: 0 },
+      scans_by_status: {
+        pending: 0,
+        running: 0,
+        completed: 1,
+        failed: 0,
+        cancelled: 0,
+      },
       scan_success_rate_percent: 100,
       average_scan_duration_seconds: 42,
       recent_scans: [],

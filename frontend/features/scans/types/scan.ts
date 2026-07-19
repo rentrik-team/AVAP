@@ -3,7 +3,12 @@
  * nullability). Wire-contract types, not UI view models.
  */
 
-export type ScanStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+export type ScanStatus =
+  | "PENDING"
+  | "RUNNING"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED";
 
 export interface ScanResponse {
   scan_id: string;
@@ -16,6 +21,9 @@ export interface ScanResponse {
   completed_at: string | null;
   execution_duration: number | null;
   failure_reason: string | null;
+  output_file_path: string | null;
+  stdout_log: string | null;
+  stderr_log: string | null;
 }
 
 export interface ScanListResponse {

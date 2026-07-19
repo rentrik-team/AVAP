@@ -80,6 +80,79 @@ class AIRecommendationResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class AIServiceBanner(BaseModel):
+    """One discovered network service, as reported by Nmap — a banner/version
+    string, not a confirmed vulnerability. Forwarded to the AI as read-only
+    context for it to reason about, never executed or trusted as instructions.
+    """
+
+    port: int = Field(..., ge=1, le=65535)
+    protocol: str = Field(..., max_length=10)
+    service_name: str = Field(..., max_length=50)
+    product: str | None = Field(None, max_length=100)
+    version: str | None = Field(None, max_length=50)
+
+    model_config = ConfigDict(frozen=True)
+
+
+class AIHostInventoryContext(BaseModel):
+    """One scanned host's discovered service inventory, for vulnerability inference."""
+
+    ip: str = Field(..., max_length=45)
+    hostname: str | None = Field(None, max_length=255)
+    operating_system: str | None = Field(None, max_length=200)
+    services: list[AIServiceBanner] = Field(default_factory=list, max_length=100)
+
+    model_config = ConfigDict(frozen=True)
+
+
+_ALLOWED_SEVERITY_RATINGS = {"None", "Low", "Medium", "High", "Critical"}
+
+
+class InferredVulnerabilityItem(BaseModel):
+    """One AI-inferred vulnerability finding for a specific host/port.
+
+    Strict, bounded contract — the same discipline as RecommendationOutput:
+    every AI response is untrusted input until it satisfies this schema.
+    """
+
+    host: str = Field(..., max_length=45)
+    port: int = Field(..., ge=1, le=65535)
+    protocol: str = Field(..., max_length=10)
+    name: str = Field(..., min_length=1, max_length=200)
+    cve: str | None = Field(None, max_length=20)
+    severity_rating: str = Field(..., max_length=20)
+    severity_score: float = Field(..., ge=0.0, le=10.0)
+    description: str = Field(..., min_length=1, max_length=MAX_DESCRIPTION_LENGTH)
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    @field_validator("severity_rating")
+    @classmethod
+    def _validate_severity_rating(cls, val: str) -> str:
+        title_val = val.strip().title()
+        if title_val not in _ALLOWED_SEVERITY_RATINGS:
+            raise ValueError(
+                f"severity_rating must be one of {sorted(_ALLOWED_SEVERITY_RATINGS)}"
+            )
+        return title_val
+
+
+class VulnerabilityInferenceOutput(BaseModel):
+    """Strict, provider-neutral structured contract for AI vulnerability inference.
+
+    Bounded to at most 100 findings per scan — matches the service-count
+    bound on AIHostInventoryContext, guarding against pathological AI output
+    becoming uncontrolled application data.
+    """
+
+    findings: list[InferredVulnerabilityItem] = Field(
+        default_factory=list, max_length=100
+    )
+
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+
 class AIProviderListResponse(BaseModel):
     """Response model listing supported and active AI providers."""
 

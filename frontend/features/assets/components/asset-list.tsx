@@ -17,7 +17,10 @@ import { formatCount } from "@/utils/format";
 
 const PAGE_SIZE = 50;
 
-export function AssetList() {
+/** `targetId`, when given, scopes the list to assets discovered via scans
+ * of that target (used by the Target detail page) instead of the global
+ * inventory. Not user-editable via the filter bar — it's a fixed scope. */
+export function AssetList({ targetId }: { targetId?: string } = {}) {
   const [skip, setSkip] = useState(0);
   const [filters, setFilters] = useState<AssetListFilters>({});
   const [appliedFilters, setAppliedFilters] = useState(filters);
@@ -41,7 +44,12 @@ export function AssetList() {
 
   // Filters are user-controlled input passed straight through as Axios
   // query params (see assets-api.ts) — never concatenated into the URL.
-  const { data, isPending, isError, refetch } = useAssets({ skip, limit: PAGE_SIZE, ...filters });
+  const { data, isPending, isError, refetch } = useAssets({
+    skip,
+    limit: PAGE_SIZE,
+    ...filters,
+    target_id: targetId,
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -70,7 +78,11 @@ export function AssetList() {
           <EmptyState
             icon={Server}
             title="No assets have been discovered yet"
-            description="Assets are populated automatically when a scan completes against a target. Start a scan to begin building the inventory."
+            description={
+              targetId
+                ? "Assets are populated automatically when a scan completes against this target. Start a scan to begin building the inventory."
+                : "Assets are populated automatically when a scan completes against a target. Start a scan to begin building the inventory."
+            }
           />
         )
       ) : (

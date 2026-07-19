@@ -105,6 +105,18 @@ class ScannerTimeoutException(AppException):
         )
 
 
+class ScannerCancelledException(AppException):
+    """Raised when a scanner execution is cancelled by user request."""
+
+    def __init__(self, message: str, details: dict[str, Any] | None = None):
+        super().__init__(
+            message=message,
+            status_code=499,
+            error_code="SCANNER_CANCELLED",
+            details=details,
+        )
+
+
 class ParserException(AppException):
     """Raised when a scan artifact parsing or validation fails."""
 

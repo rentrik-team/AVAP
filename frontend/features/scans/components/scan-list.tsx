@@ -27,10 +27,16 @@ const PAGE_SIZE = 50;
 // silently guessing — see ScanTable/ScanCards.
 const TARGET_LOOKUP_LIMIT = 200;
 
-export function ScanList() {
+/** `targetId`, when given, scopes the list to one target's scan history
+ * (used by the Target detail page) instead of the global scan list. */
+export function ScanList({ targetId }: { targetId?: string } = {}) {
   const [skip, setSkip] = useState(0);
   const [scanPendingDelete, setScanPendingDelete] = useState<ScanResponse | null>(null);
-  const { data, isPending, isError, refetch } = useScans({ skip, limit: PAGE_SIZE });
+  const { data, isPending, isError, refetch } = useScans({
+    skip,
+    limit: PAGE_SIZE,
+    target_id: targetId,
+  });
   const { data: targetsData } = useTargets({ limit: TARGET_LOOKUP_LIMIT });
 
   const targetsById = useMemo(() => {
@@ -60,7 +66,11 @@ export function ScanList() {
       <EmptyState
         icon={Radar}
         title="No scans yet"
-        description="Start a scan from a target to begin assessing it."
+        description={
+          targetId
+            ? "Start a scan above to begin assessing this target."
+            : "Start a scan from a target to begin assessing it."
+        }
       />
     );
   }

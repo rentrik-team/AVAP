@@ -29,11 +29,20 @@ def list_assets(
     hostname: str | None = Query(None, description="Filter by hostname"),
     port: int | None = Query(None, description="Filter by open port"),
     cve: str | None = Query(None, description="Filter by vulnerability CVE"),
+    target_id: uuid.UUID | None = Query(
+        None, description="Filter to assets discovered via scans of this target"
+    ),
     service: AssetService = Depends(get_asset_service),
 ) -> dict:
     """Retrieve a paginated, filtered list of assets."""
     items, total = service.get_all_assets(
-        skip=skip, limit=limit, ip=ip, hostname=hostname, port=port, cve=cve
+        skip=skip,
+        limit=limit,
+        ip=ip,
+        hostname=hostname,
+        port=port,
+        cve=cve,
+        target_id=target_id,
     )
 
     asset_responses = [AssetResponse.model_validate(item) for item in items]

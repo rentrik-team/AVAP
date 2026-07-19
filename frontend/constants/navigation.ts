@@ -6,8 +6,6 @@ import {
   LayoutDashboard,
   Radar,
   ScrollText,
-  Server,
-  ShieldAlert,
   Sparkles,
 } from "lucide-react";
 
@@ -27,8 +25,16 @@ export interface NavSection {
 /**
  * Navigation taxonomy aligned to existing backend resources (Modules
  * 01–10). Every module with a genuine "browse a collection" endpoint now
- * has a route: Overview (09), Targets (01), Scans (02), Assets/
- * Vulnerabilities (05), Risk (06), Reports (08), Audit Events (10).
+ * has a route: Overview (09), Targets (01), Scans (02), Risk (06),
+ * Reports (08), Audit Events (10).
+ *
+ * Assets and Vulnerabilities (Module 05) are intentionally NOT given their
+ * own top-level nav entries: both are scanner-discovered inventory with no
+ * meaning independent of the target that produced them, so a flat
+ * ungrouped "everything at once" list would misrepresent the data. They're
+ * reached target-wise instead, as sections on a Target's detail page
+ * (/targets/{id}) — the per-entity detail routes (/assets/{id},
+ * /vulnerabilities/{id}) still exist for drill-down from there.
  *
  * AI Remediation (Module 07) is intentionally NOT given its own nav entry
  * or route: there is no `GET /ai/recommendations` collection endpoint to
@@ -51,16 +57,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     label: "Security",
-    items: [
-      { label: "Assets", href: "/assets", icon: Server, enabled: true },
-      {
-        label: "Vulnerabilities",
-        href: "/vulnerabilities",
-        icon: ShieldAlert,
-        enabled: true,
-      },
-      { label: "Risk", href: "/risk", icon: Gauge, enabled: true },
-    ],
+    items: [{ label: "Risk", href: "/risk", icon: Gauge, enabled: true }],
   },
   {
     label: "Intelligence",

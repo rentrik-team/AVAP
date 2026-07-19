@@ -1,8 +1,9 @@
 "use client";
 
+import Link from "next/link";
+
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { CopyableValue } from "@/components/shared/copyable-value";
 import { TargetRowActions } from "@/features/targets/components/target-row-actions";
 import { TARGET_TYPE_LABELS, type TargetResponse } from "@/features/targets/types/target";
 import { formatRelativeTime } from "@/utils/format";
@@ -22,7 +23,12 @@ export function TargetCards({
         <Card key={target.id}>
           <CardContent className="flex items-start justify-between gap-3">
             <div className="flex min-w-0 flex-col gap-1.5">
-              <CopyableValue value={target.target} className="text-sm" />
+              <Link
+                href={`/targets/${target.id}`}
+                className="truncate font-mono text-sm font-medium text-foreground hover:text-primary hover:underline"
+              >
+                {target.target}
+              </Link>
               <div className="flex items-center gap-2">
                 <Badge variant="outline">{TARGET_TYPE_LABELS[target.target_type]}</Badge>
                 <span className="text-xs text-muted-foreground">

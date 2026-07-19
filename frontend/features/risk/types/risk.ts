@@ -49,4 +49,5 @@ export interface RiskAssessmentListResponse {
 export interface RiskListFilters {
   scope?: RiskScope;
   risk_level?: RiskLevel;
+  scan_id?: string;
 }

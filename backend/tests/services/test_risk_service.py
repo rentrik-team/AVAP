@@ -245,3 +245,27 @@ def test_failed_calculation_leaves_no_partial_risk_state(
         .count()
     )
     assert remaining == 0
+
+
+# --- scan_id filter (used by the Scan Detail page's findings section) ---
+
+
+def test_get_risk_assessments_filters_by_scan_id(db_session, risk_service, scan_job, target):
+    """A scan's own findings must be retrievable in isolation from other
+    scans' risk assessments — this is what lets the Scan Detail page show
+    only this scan's vulnerability findings for the Remediation action."""
+    other_scan = ScanJob(target_id=target.id, status=ScanStatus.COMPLETED, scan_type="full")
+    db_session.add(other_scan)
+    db_session.flush()
+
+    _seed_finding(db_session, scan_job, "192.168.60.1", 6.0, "Medium")
+    _seed_finding(db_session, other_scan, "192.168.60.2", 8.0, "High")
+
+    risk_service.calculate_risk_for_scan(scan_job.id)
+    risk_service.calculate_risk_for_scan(other_scan.id)
+
+    items, total = risk_service.get_risk_assessments(
+        scope=RiskScope.VULNERABILITY, scan_id=scan_job.id
+    )
+    assert total == 1
+    assert items[0].scan_id == scan_job.id

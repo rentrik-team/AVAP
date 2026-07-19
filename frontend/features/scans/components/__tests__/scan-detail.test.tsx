@@ -47,6 +47,9 @@ describe("ScanDetail", () => {
       completed_at: null,
       execution_duration: null,
       failure_reason: null,
+      output_file_path: null,
+      stdout_log: null,
+      stderr_log: null,
     });
     mockedGetScanStatus.mockResolvedValue({
       scan_id: "33333333-3333-3333-3333-333333333333",
@@ -82,6 +85,9 @@ describe("ScanDetail", () => {
       completed_at: "2026-07-15T00:01:00Z",
       execution_duration: 60,
       failure_reason: "Scanner execution timed out.",
+      output_file_path: null,
+      stdout_log: null,
+      stderr_log: null,
     });
     mockedGetScanStatus.mockResolvedValue({
       scan_id: "44444444-4444-4444-4444-444444444444",

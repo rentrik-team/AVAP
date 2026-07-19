@@ -6,7 +6,12 @@
  */
 
 export type RiskLevel = "INFORMATIONAL" | "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-export type ScanStatus = "PENDING" | "RUNNING" | "COMPLETED" | "FAILED";
+export type ScanStatus =
+  | "PENDING"
+  | "RUNNING"
+  | "COMPLETED"
+  | "FAILED"
+  | "CANCELLED";
 export type TargetType = "IPV4" | "CIDR" | "HOSTNAME";
 
 export interface ScanStatusDistribution {
@@ -14,6 +19,7 @@ export interface ScanStatusDistribution {
   running: number;
   completed: number;
   failed: number;
+  cancelled: number;
 }
 
 export interface VulnerabilitySeverityDistribution {

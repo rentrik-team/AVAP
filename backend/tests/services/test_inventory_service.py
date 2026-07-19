@@ -420,11 +420,11 @@ def test_rollback_on_failure(db_session, inventory_service, scan_job):
     host = ParsedHost(ipv4="10.0.6.1", services=[svc])
     pkg = _make_package(scan_job.id, [host])
 
-    # Patch _create_finding_if_not_exists to raise after asset/service/vuln are created
+    # Patch link_finding to raise after asset/service/vuln are created
     with (
         patch.object(
             inventory_service,
-            "_create_finding_if_not_exists",
+            "link_finding",
             side_effect=RuntimeError("simulated failure"),
         ),
         pytest.raises(RuntimeError, match="simulated failure"),

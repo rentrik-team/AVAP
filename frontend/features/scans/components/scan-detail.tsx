@@ -1,13 +1,14 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { Trash2 } from "lucide-react";
+import { OctagonX, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CopyableValue } from "@/components/shared/copyable-value";
 import { ErrorState } from "@/components/shared/error-state";
 import { PageHeader } from "@/components/shared/page-header";
@@ -15,11 +16,13 @@ import { ScanStatusBadge } from "@/components/shared/scan-status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { dashboardKeys } from "@/features/dashboard/hooks/query-keys";
 import { ScanReportsSection } from "@/features/reports/components/scan-reports-section";
+import { RiskList } from "@/features/risk/components/risk-list";
 import { ScanRiskSection } from "@/features/risk/components/scan-risk-section";
 import { DeleteScanDialog } from "@/features/scans/components/delete-scan-dialog";
 import { scanKeys } from "@/features/scans/hooks/query-keys";
 import {
   isTerminalScanStatus,
+  useCancelScan,
   useScan,
   useScanStatus,
 } from "@/features/scans/hooks/use-scans";
@@ -44,6 +47,7 @@ export function ScanDetail({ scanId }: { scanId: string }) {
   const { data: statusData } = useScanStatus(scanId);
   const { data: target } = useTarget(scan?.target_id ?? "");
   const previousStatusRef = useRef<ScanStatus | undefined>(undefined);
+  const { mutate: cancelScan, isPending: isCancelling } = useCancelScan();
 
   // Lifecycle observation: when the polled lightweight status transitions
   // into a terminal state, pull the final full record (completed_at,
@@ -97,20 +101,40 @@ export function ScanDetail({ scanId }: { scanId: string }) {
 
   const isRunning = scan.status === "RUNNING";
 
+  function handleCancel() {
+    if (isCancelling) return;
+    cancelScan(scanId, {
+      onSuccess: () => {
+        toast.success("Cancellation requested — the scan will stop shortly");
+      },
+      onError: (error) => {
+        toast.error(error.message);
+      },
+    });
+  }
+
   return (
     <div className="mx-auto flex max-w-[1600px] flex-col">
       <PageHeader
         title={`${formatLabel(scan.scan_type)} Scan`}
         actions={
-          <Button
-            variant="outline"
-            onClick={() => setDeleteOpen(true)}
-            disabled={isRunning}
-            title={isRunning ? "Cannot delete a running scan" : undefined}
-          >
-            <Trash2 className="size-4" aria-hidden="true" />
-            Delete
-          </Button>
+          <div className="flex items-center gap-2">
+            {isRunning && (
+              <Button variant="outline" onClick={handleCancel} disabled={isCancelling}>
+                <OctagonX className="size-4" aria-hidden="true" />
+                {isCancelling ? "Cancelling…" : "Stop Scan"}
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              onClick={() => setDeleteOpen(true)}
+              disabled={isRunning}
+              title={isRunning ? "Cannot delete a running scan" : undefined}
+            >
+              <Trash2 className="size-4" aria-hidden="true" />
+              Delete
+            </Button>
+          </div>
         }
       />
 
@@ -152,10 +176,40 @@ export function ScanDetail({ scanId }: { scanId: string }) {
               </p>
             </div>
           )}
+
+          {(scan.stdout_log || scan.stderr_log) && (
+            <div className="col-span-full flex flex-col gap-3">
+              <span className="text-xs text-muted-foreground">
+                Scanner output
+                {scan.status === "CANCELLED" || scan.status === "RUNNING"
+                  ? " (partial — scan was stopped before finishing)"
+                  : ""}
+              </span>
+              {scan.stdout_log && (
+                <pre className="max-h-80 overflow-auto rounded-md border border-border bg-muted/50 px-3 py-2 font-mono text-xs text-foreground whitespace-pre-wrap">
+                  {scan.stdout_log}
+                </pre>
+              )}
+              {scan.stderr_log && (
+                <pre className="max-h-80 overflow-auto rounded-md border border-destructive-border bg-destructive-bg px-3 py-2 font-mono text-xs text-destructive whitespace-pre-wrap">
+                  {scan.stderr_log}
+                </pre>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
       <ScanRiskSection scanId={scan.scan_id} scanStatus={scan.status} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Vulnerability Findings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <RiskList scanId={scan.scan_id} />
+        </CardContent>
+      </Card>
 
       <ScanReportsSection scanId={scan.scan_id} scanStatus={scan.status} />
 

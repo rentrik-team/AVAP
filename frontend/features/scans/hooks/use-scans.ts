@@ -21,7 +21,9 @@ import type { ApiError } from "@/lib/api/errors";
 export const SCAN_STATUS_POLL_INTERVAL_MS = 10_000;
 
 export function isTerminalScanStatus(status: ScanStatus): boolean {
-  return status === "COMPLETED" || status === "FAILED";
+  return (
+    status === "COMPLETED" || status === "FAILED" || status === "CANCELLED"
+  );
 }
 
 /** Pure so the stop-on-terminal / poll-while-active decision is unit-testable. */
@@ -42,12 +44,15 @@ export function resolveScanListPollInterval(
   return hasActiveScan ? SCAN_STATUS_POLL_INTERVAL_MS : false;
 }
 
-export function useScans(params: { skip?: number; limit?: number } = {}) {
+export function useScans(
+  params: { skip?: number; limit?: number; target_id?: string } = {}
+) {
   const skip = params.skip ?? 0;
   const limit = params.limit ?? 50;
+  const query = { skip, limit, target_id: params.target_id };
   return useQuery({
-    queryKey: scanKeys.list({ skip, limit }),
-    queryFn: () => scansApi.getScans({ skip, limit }),
+    queryKey: scanKeys.list(query),
+    queryFn: () => scansApi.getScans(query),
     refetchInterval: (query) =>
       resolveScanListPollInterval(query.state.data?.scans),
   });
@@ -82,6 +87,25 @@ export function useCreateScan() {
   return useMutation<ScanResponse, ApiError, CreateScanRequest>({
     mutationFn: (body: CreateScanRequest) => scansApi.createScan(body),
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: scanKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: dashboardKeys.summary() });
+      queryClient.invalidateQueries({ queryKey: ["dashboard", "scans"] });
+    },
+  });
+}
+
+/**
+ * No `retry`: cancellation is not idempotent to replay blindly — a retry
+ * after a transport failure could hit a scan that has since finished on
+ * its own and get back a stale-looking conflict.
+ */
+export function useCancelScan() {
+  const queryClient = useQueryClient();
+  return useMutation<ScanResponse, ApiError, string>({
+    mutationFn: (scanId: string) => scansApi.cancelScan(scanId),
+    onSuccess: (_data, scanId) => {
+      queryClient.invalidateQueries({ queryKey: scanKeys.detail(scanId) });
+      queryClient.invalidateQueries({ queryKey: scanKeys.status(scanId) });
       queryClient.invalidateQueries({ queryKey: scanKeys.lists() });
       queryClient.invalidateQueries({ queryKey: dashboardKeys.summary() });
       queryClient.invalidateQueries({ queryKey: ["dashboard", "scans"] });

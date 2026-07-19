@@ -99,7 +99,9 @@ export function AssetDetail({ assetId }: { assetId: string }) {
         asset={asset}
         open={deleteOpen}
         onOpenChange={setDeleteOpen}
-        onDeleted={() => router.push("/assets")}
+        // There is no global Assets list page to return to — assets are
+        // browsed target-wise now, so send the user back to Targets.
+        onDeleted={() => router.push("/targets")}
       />
     </div>
   );

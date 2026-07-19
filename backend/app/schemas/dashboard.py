@@ -13,6 +13,7 @@ class ScanStatusDistribution(BaseModel):
     running: int = Field(0, ge=0)
     completed: int = Field(0, ge=0)
     failed: int = Field(0, ge=0)
+    cancelled: int = Field(0, ge=0)
 
     model_config = ConfigDict(frozen=True)
 
