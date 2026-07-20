@@ -19,6 +19,7 @@ Create Date: 2026-07-17 09:45:00.000000
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -36,7 +37,8 @@ def upgrade() -> None:
         op.execute("ALTER TYPE scanstatus ADD VALUE IF NOT EXISTS 'CANCELLED'")
 
     op.add_column(
-        "scan_jobs", sa.Column("output_file_path", sa.String(length=1024), nullable=True)
+        "scan_jobs",
+        sa.Column("output_file_path", sa.String(length=1024), nullable=True),
     )
     op.add_column("scan_jobs", sa.Column("stdout_log", sa.Text(), nullable=True))
     op.add_column("scan_jobs", sa.Column("stderr_log", sa.Text(), nullable=True))
@@ -56,7 +58,8 @@ def downgrade() -> None:
         )
         op.execute("ALTER TYPE scanstatus RENAME TO scanstatus_old")
         op.execute(
-            "CREATE TYPE scanstatus AS ENUM ('PENDING', 'RUNNING', 'COMPLETED', 'FAILED')"
+            "CREATE TYPE scanstatus AS ENUM "
+            "('PENDING', 'RUNNING', 'COMPLETED', 'FAILED')"
         )
         op.execute(
             "ALTER TABLE scan_jobs ALTER COLUMN status TYPE scanstatus "

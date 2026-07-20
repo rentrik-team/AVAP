@@ -40,8 +40,12 @@ def test_get_all_assets_filters_by_target_id(service, db_session):
     db_session.add_all([target_a, target_b])
     db_session.flush()
 
-    scan_a = ScanJob(target_id=target_a.id, scan_type="full", status=ScanStatus.COMPLETED)
-    scan_b = ScanJob(target_id=target_b.id, scan_type="full", status=ScanStatus.COMPLETED)
+    scan_a = ScanJob(
+        target_id=target_a.id, scan_type="full", status=ScanStatus.COMPLETED
+    )
+    scan_b = ScanJob(
+        target_id=target_b.id, scan_type="full", status=ScanStatus.COMPLETED
+    )
     db_session.add_all([scan_a, scan_b])
     db_session.flush()
 
@@ -59,6 +63,36 @@ def test_get_all_assets_filters_by_target_id(service, db_session):
     db_session.commit()
 
     items, total = service.get_all_assets(target_id=target_a.id)
+    assert total == 1
+    assert items[0].id == asset_a.id
+
+
+def test_get_all_assets_filters_by_scan_id(service, db_session):
+    """Assets discovered by one scan must not leak into another scan's
+    scoped list, even against the same target."""
+    target = Target(target="10.0.1.1", target_type=TargetType.IPV4)
+    db_session.add(target)
+    db_session.flush()
+
+    scan_a = ScanJob(target_id=target.id, scan_type="full", status=ScanStatus.COMPLETED)
+    scan_b = ScanJob(target_id=target.id, scan_type="full", status=ScanStatus.COMPLETED)
+    db_session.add_all([scan_a, scan_b])
+    db_session.flush()
+
+    asset_a = Asset(ipv4="10.0.1.10")
+    asset_b = Asset(ipv4="10.0.1.20")
+    db_session.add_all([asset_a, asset_b])
+    db_session.flush()
+
+    db_session.add_all(
+        [
+            ScanFinding(scan_id=scan_a.id, asset_id=asset_a.id),
+            ScanFinding(scan_id=scan_b.id, asset_id=asset_b.id),
+        ]
+    )
+    db_session.commit()
+
+    items, total = service.get_all_assets(scan_id=scan_a.id)
     assert total == 1
     assert items[0].id == asset_a.id
 

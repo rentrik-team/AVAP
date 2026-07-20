@@ -1,22 +1,8 @@
-import { PageHeader } from "@/components/shared/page-header";
-import { RiskList } from "@/features/risk/components/risk-list";
-import { RiskSummaryCard } from "@/features/risk/components/risk-summary-card";
+import { redirect } from "next/navigation";
 
+// The former Risk page now lives at /findings — risk itself belongs to the
+// Scan Detail workflow, and the platform-wide list is framed as Findings.
+// This permanent redirect keeps old bookmarks working.
 export default function RiskPage() {
-  return (
-    <div className="mx-auto flex max-w-[1600px] flex-col">
-      <PageHeader
-        title="Risk"
-        description="Deterministic, explainable risk assessments calculated by AVAP's Risk Engine across vulnerabilities, assets, scans, and the overall platform."
-      />
-
-      <div className="flex flex-col gap-8">
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
-          <RiskSummaryCard />
-        </div>
-
-        <RiskList />
-      </div>
-    </div>
-  );
+  redirect("/findings");
 }

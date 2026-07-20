@@ -67,7 +67,8 @@ class NmapParser(BaseParser):
                     ipv4_addr = addr_node.get("addr")
                     break
 
-            # If no IP, we skip or use a placeholder (Nmap should always provide an IP for a host)
+            # If no IP, we skip or use a placeholder (Nmap should always
+            # provide an IP for a host)
             if not ipv4_addr:
                 logger.warning(
                     "Skipping host element with missing IPv4 address in Nmap report",
@@ -138,7 +139,8 @@ class NmapParser(BaseParser):
                             product=product,
                             version=version,
                             extra_info=extra_info,
-                            vulnerabilities=[],  # Nmap port scanner doesn't report vulnerabilities directly
+                            # Nmap port scanner doesn't report vulnerabilities
+                            vulnerabilities=[],
                         )
                     )
 

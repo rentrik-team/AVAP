@@ -62,8 +62,9 @@ class OpenVASAdapter(BaseScannerAdapter):
         filename = f"openvas_{scan_id}.xml"
         output_path = output_dir / filename
 
-        # For Phase 1 validation and testing, if host is localhost, we simulate/stub the scan.
-        # This prevents failure if OpenVAS daemon is not running in the development env.
+        # For Phase 1 validation and testing, if host is localhost, we
+        # simulate/stub the scan. This prevents failure if OpenVAS daemon
+        # is not running in the development env.
         is_stub = self.settings.openvas_host in ["localhost", "127.0.0.1", ""]
 
         if is_stub:
@@ -82,7 +83,8 @@ class OpenVASAdapter(BaseScannerAdapter):
                 f'    <result id="1">\n'
                 f"      <name>Mock OpenVAS Finding</name>\n"
                 f"      <severity>7.5</severity>\n"
-                f"      <description>This is a simulated OpenVAS vulnerability for testing.</description>\n"
+                f"      <description>This is a simulated OpenVAS "
+                f"vulnerability for testing.</description>\n"
                 f"    </result>\n"
                 f"  </results>\n"
                 f"</report>\n"
@@ -108,7 +110,11 @@ class OpenVASAdapter(BaseScannerAdapter):
             # Here we would normally connect via socket:
             # socket.connect((self.settings.openvas_host, self.settings.openvas_port))
             # Send GMP/GVM commands, etc.
-            # Since this is a placeholder/skeleton, we raise execution error if actual connection fails.
-            msg = f"Failed to connect to OpenVAS daemon at {self.settings.openvas_host}:{self.settings.openvas_port}."
+            # Since this is a placeholder/skeleton, we raise execution
+            # error if actual connection fails.
+            msg = (
+                "Failed to connect to OpenVAS daemon at "
+                f"{self.settings.openvas_host}:{self.settings.openvas_port}."
+            )
             logger.error(msg, extra={"scan_id": str(scan_id)})
             raise ScannerExecutionException(msg)

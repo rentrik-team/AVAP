@@ -3,6 +3,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from app.ai.manager import AIManager
 from app.ai.provider import AIProviderResponse
 from app.core.enums import RiskScope, ScanStatus, TargetType
 from app.core.exceptions import InsufficientReportDataException
@@ -29,7 +30,7 @@ from app.services.inventory_service import InventoryService
 from app.services.risk_service import RiskService
 
 
-class _FakeAIManager:
+class _FakeAIManager(AIManager):
     def __init__(self, content=None):
         self.content = content or json.dumps(
             {

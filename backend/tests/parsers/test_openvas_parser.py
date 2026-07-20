@@ -21,7 +21,7 @@ def mock_openvas_xml():
       <port>22/tcp</port>
       <name>SSH Weak Algorithms</name>
       <severity>4.3</severity>
-      <description>The remote SSH service supports weak encryption algorithms.</description>
+      <description>The remote SSH service supports weak ciphers.</description>
       <nvt>
         <name>SSH Weak Algorithms Detected</name>
         <cve>CVE-2023-1111</cve>
@@ -35,7 +35,7 @@ def mock_openvas_xml():
       <port>80/tcp</port>
       <name>Apache Version Leak</name>
       <severity>7.5</severity>
-      <description>Apache web server discloses version information in HTTP headers.</description>
+      <description>Apache discloses version info in HTTP headers.</description>
       <nvt>
         <cve>nocve</cve>
       </nvt>

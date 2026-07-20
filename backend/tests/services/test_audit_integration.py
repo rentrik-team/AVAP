@@ -11,6 +11,7 @@ import uuid
 
 from fastapi.testclient import TestClient
 
+from app.ai.manager import AIManager
 from app.ai.provider import AIProviderResponse
 from app.core.config import Settings
 from app.core.enums import RiskScope
@@ -29,7 +30,7 @@ from app.services.inventory_service import InventoryService
 from app.services.report_service import ReportService
 
 
-class _FakeProviderBoundaryManager:
+class _FakeProviderBoundaryManager(AIManager):
     def resolve_provider_name(self):
         return "openrouter"
 

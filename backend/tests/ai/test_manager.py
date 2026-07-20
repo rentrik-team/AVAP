@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 
 from app.ai.manager import AIManager
@@ -10,7 +12,7 @@ from app.core.exceptions import (
 
 
 def _settings(**overrides) -> Settings:
-    defaults = {
+    defaults: dict[str, Any] = {
         "ai_provider": "openrouter",
         "openrouter_api_key": "test-key",
         "openrouter_model": "test-model",

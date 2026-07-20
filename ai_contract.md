@@ -81,11 +81,12 @@ Current implementation must never prevent these future capabilities.
 
 Current focus:
 
-**Backend Development Only**
+**Full-Stack Refinement** — the backend and the Next.js frontend are both
+built and shipped (frontend delivered across commits aaedddb→629bff5);
+ongoing work refines and hardens the existing stack.
 
 The following are intentionally postponed:
 
-* Frontend development
 * Dockerization
 * Authentication
 * Authorization
@@ -94,8 +95,6 @@ The following are intentionally postponed:
 * Distributed deployment
 
 Backend APIs shall be validated using Postman.
-
-No frontend code shall be generated unless explicitly requested.
 
 No Docker configuration shall be generated unless explicitly requested.
 
@@ -228,7 +227,7 @@ Business logic shall remain independent of implementation details.
 * Nmap
 * OpenVAS Community Edition
 
-## Future Frontend
+## Frontend (built)
 
 * Next.js
 * React

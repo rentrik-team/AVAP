@@ -5,13 +5,13 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 # Import all models so Base.metadata registers every table for create_all.
-# This must happen before `from app.main import app` below: `import app.models`
-# binds the top-level `app` package name in this module's namespace, which
-# would otherwise shadow the FastAPI `app` instance imported next.
+# The FastAPI instance is imported under an alias so `import app.models`
+# (which binds the top-level `app` package name in this module's namespace)
+# cannot shadow it.
 import app.models  # noqa: F401
 from app.api.dependencies.database import get_db
 from app.database.base import Base
-from app.main import app
+from app.main import app as fastapi_app
 
 # SQLite database URL for testing
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -79,7 +79,7 @@ def client(db_session):
         finally:
             pass  # Transaction rollback handles cleanup
 
-    app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
+    fastapi_app.dependency_overrides[get_db] = override_get_db
+    with TestClient(fastapi_app) as c:
         yield c
-    app.dependency_overrides.clear()
+    fastapi_app.dependency_overrides.clear()

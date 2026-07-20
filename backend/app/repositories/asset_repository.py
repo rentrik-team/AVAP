@@ -50,14 +50,20 @@ class AssetRepository:
         port: int | None = None,
         cve: str | None = None,
         target_id: uuid.UUID | None = None,
+        scan_id: uuid.UUID | None = None,
     ) -> tuple[Sequence[Asset], int]:
         """Retrieve a paginated, filtered list of assets along with the total count.
 
-        Uses a subquery strategy for join-based filters (port, cve, target_id)
-        to avoid GROUP BY issues and ensure PostgreSQL compatibility.
+        Uses a subquery strategy for join-based filters (port, cve, target_id,
+        scan_id) to avoid GROUP BY issues and ensure PostgreSQL compatibility.
         """
         # Build an ID subquery when join-based filters are needed
-        needs_subquery = port is not None or cve is not None or target_id is not None
+        needs_subquery = (
+            port is not None
+            or cve is not None
+            or target_id is not None
+            or scan_id is not None
+        )
 
         if needs_subquery:
             # Subquery: select distinct asset IDs matching the join filters
@@ -85,6 +91,14 @@ class AssetRepository:
                     .join(ScanJob, ScanFinding.scan_id == ScanJob.id)
                     .where(ScanJob.target_id == target_id)
                 )
+
+            if scan_id is not None:
+                # Assets discovered by this specific scan (Module 02/05
+                # scan-detail view) — a direct ScanFinding.scan_id match,
+                # no ScanJob join needed.
+                id_subq = id_subq.join(
+                    ScanFinding, ScanFinding.asset_id == Asset.id
+                ).where(ScanFinding.scan_id == scan_id)
 
             # Add simple column filters to subquery too
             if ip:

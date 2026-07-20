@@ -41,7 +41,8 @@ class ScannerExecutor:
         # Whitelist of allowed executables
         self._executable_whitelist = {
             ScannerType.NMAP: ["nmap", "nmap.exe"],
-            # OpenVAS is currently stubbed/handled via API, but if CLI is used, whitelist here.
+            # OpenVAS is currently stubbed/handled via API, but if CLI is
+            # used, whitelist here.
         }
 
     def _validate_executable(
@@ -77,7 +78,8 @@ class ScannerExecutor:
                 return executable
 
             raise ScannerExecutionException(
-                f"Unauthorized executable: '{executable}' is not allowed for scanner type {scanner_type.value}."
+                f"Unauthorized executable: '{executable}' is not allowed "
+                f"for scanner type {scanner_type.value}."
             )
 
         return executable

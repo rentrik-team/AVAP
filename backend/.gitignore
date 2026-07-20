@@ -28,7 +28,8 @@ logs/
 # Reports
 generated_reports/
 
-# Scanner Output
+# Scanner Output (default dir is ./scan_output — see core/config.py)
+scan_output/
 scanner_output/
 
 # Testing

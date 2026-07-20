@@ -22,6 +22,7 @@ export function useAssets(params: { skip?: number; limit?: number } & AssetListF
     port: params.port,
     cve: params.cve,
     target_id: params.target_id,
+    scan_id: params.scan_id,
   };
   return useQuery({
     queryKey: assetKeys.list(query),

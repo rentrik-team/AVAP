@@ -6,6 +6,7 @@ recommendation -> AI API retrieval.
 
 from fastapi.testclient import TestClient
 
+from app.ai.manager import AIManager
 from app.ai.provider import AIProviderResponse
 from app.core.enums import RiskScope, ScanStatus, TargetType
 from app.models.scan_job import ScanJob
@@ -30,7 +31,7 @@ from app.services.inventory_service import InventoryService
 from app.services.risk_service import RiskService
 
 
-class _FakeProviderBoundaryManager:
+class _FakeProviderBoundaryManager(AIManager):
     """A fake positioned exactly at the AI Manager / provider interface
     boundary — the real AIManager contract, backed by a canned response
     instead of a live OpenRouter call.

@@ -13,6 +13,7 @@ import {
   useReports,
 } from "@/features/reports/hooks/use-reports";
 import { triggerBrowserDownload } from "@/features/reports/lib/download";
+import { useScanRisk } from "@/features/risk/hooks/use-risk";
 import type { ScanStatus } from "@/features/scans/types/scan";
 import { formatDateTime } from "@/utils/format";
 
@@ -34,13 +35,17 @@ export function ScanReportsSection({
   const { mutate: download, isPending: isDownloading } = useDownloadReport();
 
   // Report generation requires an already-calculated risk assessment for
-  // the scan (backend returns 422 otherwise); restrained here the same way
-  // ScanRiskSection restrains "Calculate Risk" to completed scans, rather
-  // than inventing a second cross-feature fetch just to pre-validate it.
-  const canGenerate = scanStatus === "COMPLETED";
+  // the scan (backend returns 422 otherwise). Reuses the exact query
+  // ScanRiskSection already runs on this page (deduped by TanStack Query);
+  // a 404/no-data result means "not calculated yet". Calculating risk
+  // writes into this same query key, so the button enables immediately.
+  const { data: risk, isPending: isRiskPending } = useScanRisk(scanId);
+  const scanCompleted = scanStatus === "COMPLETED";
+  const riskCalculated = Boolean(risk);
+  const canGenerate = scanCompleted && riskCalculated;
 
   function handleGenerate() {
-    if (isGenerating) return;
+    if (isGenerating || !canGenerate) return;
     generate(scanId, {
       onSuccess: () => toast.success("Report generated"),
       onError: (error) => toast.error(error.message),
@@ -104,16 +109,24 @@ export function ScanReportsSection({
           </ul>
         )}
 
-        {canGenerate && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-fit"
-            onClick={handleGenerate}
-            disabled={isGenerating}
-          >
-            {isGenerating ? "Generating…" : "Generate Report"}
-          </Button>
+        {scanCompleted && (
+          <div className="flex flex-col gap-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-fit"
+              onClick={handleGenerate}
+              disabled={isGenerating || isRiskPending || !riskCalculated}
+            >
+              {isGenerating ? "Generating…" : "Generate Report"}
+            </Button>
+            {!isRiskPending && !riskCalculated && (
+              <p className="text-xs text-muted-foreground">
+                Calculate risk above to enable report generation — reports
+                require a completed risk assessment.
+              </p>
+            )}
+          </div>
         )}
       </CardContent>
     </Card>

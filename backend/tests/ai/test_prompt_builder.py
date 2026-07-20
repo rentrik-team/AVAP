@@ -29,6 +29,7 @@ def test_build_prompt_includes_required_context_fields():
     prompt = build_prompt(context)
 
     assert context.vulnerability_name in prompt.user
+    assert context.cve is not None
     assert context.cve in prompt.user
     assert str(context.risk_score) in prompt.user
     assert context.risk_level.value in prompt.user

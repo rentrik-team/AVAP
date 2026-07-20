@@ -14,7 +14,8 @@ class Target(Base, TimestampMixin):
 
     __tablename__ = "targets"
 
-    # The actual string representation of the target (e.g. "192.168.1.10", "example.com")
+    # The actual string representation of the target
+    # (e.g. "192.168.1.10", "example.com").
     # This must be stored in its normalized form.
     target: Mapped[str] = mapped_column(
         String(253), unique=True, index=True, nullable=False

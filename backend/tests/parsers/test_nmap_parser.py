@@ -25,11 +25,13 @@ def mock_nmap_xml():
     <ports>
       <port protocol="tcp" portid="80">
         <state state="open" reason="syn-ack" reason_ttl="64"/>
-        <service name="http" product="Apache httpd" version="2.4.41" extrainfo="Unix" method="probed" conf="10"/>
+        <service name="http" product="Apache httpd" version="2.4.41"
+                 extrainfo="Unix" method="probed" conf="10"/>
       </port>
       <port protocol="tcp" portid="22">
         <state state="open" reason="syn-ack"/>
-        <service name="ssh" product="OpenSSH" version="8.2p1" extrainfo="Ubuntu" method="probed"/>
+        <service name="ssh" product="OpenSSH" version="8.2p1"
+                 extrainfo="Ubuntu" method="probed"/>
       </port>
       <port protocol="tcp" portid="443">
         <state state="closed" reason="conn-refused"/>
@@ -113,7 +115,7 @@ def test_nmap_parser_corrupted_xml():
 def test_nmap_parser_xxe_protection():
     """Verify parser does not expand external XML entities (XXE safety check)."""
     xxe_xml = """<?xml version="1.0" encoding="ISO-8859-1"?>
-<!DOCTYPE foo [  
+<!DOCTYPE foo [
   <!ELEMENT foo ANY >
   <!ENTITY xxe SYSTEM "file:///etc/passwd" >
 ]>
@@ -140,8 +142,9 @@ def test_nmap_parser_xxe_protection():
         )
         parser = NmapParser()
 
-        # When parsing XML containing external entity declarations with resolve_entities=False,
-        # it either fails during parsing or keeps the entity reference unexpanded/empty.
+        # When parsing XML containing external entity declarations with
+        # resolve_entities=False, it either fails during parsing or keeps
+        # the entity reference unexpanded/empty.
         try:
             package = parser.parse(artifact)
             # If it succeeded, check that the external reference was NOT expanded

@@ -1,19 +1,27 @@
 "use client";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { OctagonX, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, OctagonX, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { CopyableValue } from "@/components/shared/copyable-value";
 import { ErrorState } from "@/components/shared/error-state";
 import { PageHeader } from "@/components/shared/page-header";
 import { ScanStatusBadge } from "@/components/shared/scan-status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AssetList } from "@/features/assets/components/asset-list";
+import { assetKeys } from "@/features/assets/hooks/query-keys";
 import { dashboardKeys } from "@/features/dashboard/hooks/query-keys";
 import { ScanReportsSection } from "@/features/reports/components/scan-reports-section";
 import { RiskList } from "@/features/risk/components/risk-list";
@@ -28,6 +36,8 @@ import {
 } from "@/features/scans/hooks/use-scans";
 import type { ScanStatus } from "@/features/scans/types/scan";
 import { useTarget } from "@/features/targets/hooks/use-targets";
+import { VulnerabilityList } from "@/features/vulnerabilities/components/vulnerability-list";
+import { vulnerabilityKeys } from "@/features/vulnerabilities/hooks/query-keys";
 import { formatDateTime, formatDuration, formatLabel } from "@/utils/format";
 
 function DetailField({ label, children }: { label: string; children: React.ReactNode }) {
@@ -43,6 +53,7 @@ export function ScanDetail({ scanId }: { scanId: string }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [rawOutputOpen, setRawOutputOpen] = useState(false);
   const { data: scan, isPending, isError, refetch } = useScan(scanId);
   const { data: statusData } = useScanStatus(scanId);
   const { data: target } = useTarget(scan?.target_id ?? "");
@@ -52,8 +63,10 @@ export function ScanDetail({ scanId }: { scanId: string }) {
   // Lifecycle observation: when the polled lightweight status transitions
   // into a terminal state, pull the final full record (completed_at,
   // execution_duration, failure_reason) and refresh the read models it
-  // affects. This never triggers risk/AI/report orchestration itself —
-  // it only re-reads what the backend has already persisted.
+  // affects — including the asset inventory and vulnerability findings the
+  // completed scan just populated (AI discovery runs server-side as part
+  // of scan completion). This never triggers risk/AI/report orchestration
+  // itself — it only re-reads what the backend has already persisted.
   useEffect(() => {
     const currentStatus = statusData?.status;
     if (!currentStatus) return;
@@ -65,6 +78,8 @@ export function ScanDetail({ scanId }: { scanId: string }) {
     ) {
       queryClient.invalidateQueries({ queryKey: scanKeys.detail(scanId) });
       queryClient.invalidateQueries({ queryKey: scanKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: assetKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: vulnerabilityKeys.lists() });
       queryClient.invalidateQueries({ queryKey: dashboardKeys.summary() });
       queryClient.invalidateQueries({ queryKey: ["dashboard", "scans"] });
     }
@@ -177,14 +192,79 @@ export function ScanDetail({ scanId }: { scanId: string }) {
             </div>
           )}
 
-          {(scan.stdout_log || scan.stderr_log) && (
-            <div className="col-span-full flex flex-col gap-3">
-              <span className="text-xs text-muted-foreground">
-                Scanner output
-                {scan.status === "CANCELLED" || scan.status === "RUNNING"
-                  ? " (partial — scan was stopped before finishing)"
-                  : ""}
-              </span>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Discovered Hosts &amp; Services</CardTitle>
+          <CardDescription>
+            What the scanner found — hosts, operating systems, open ports,
+            protocols, running services, and detected versions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <AssetList scanId={scan.scan_id} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Security Analysis</CardTitle>
+          <CardDescription>
+            Potential vulnerabilities for this scan&apos;s discovered services.
+            Entries marked AI-assisted are inferences from service and version
+            banners — not scanner-confirmed results.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <VulnerabilityList scanId={scan.scan_id} />
+        </CardContent>
+      </Card>
+
+      <ScanRiskSection scanId={scan.scan_id} scanStatus={scan.status} />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Findings &amp; Remediation</CardTitle>
+          <CardDescription>
+            Deterministic risk-scored findings from the Risk Engine. Open a
+            vulnerability finding to generate advisory AI remediation guidance.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <RiskList scanId={scan.scan_id} />
+        </CardContent>
+      </Card>
+
+      <ScanReportsSection scanId={scan.scan_id} scanStatus={scan.status} />
+
+      {(scan.stdout_log || scan.stderr_log) && (
+        <Card>
+          <CardHeader>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 text-left"
+              onClick={() => setRawOutputOpen((prev) => !prev)}
+              aria-expanded={rawOutputOpen}
+            >
+              {rawOutputOpen ? (
+                <ChevronDown className="size-4 shrink-0" aria-hidden="true" />
+              ) : (
+                <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
+              )}
+              <CardTitle>Raw Scanner Output</CardTitle>
+            </button>
+            <CardDescription>
+              Unprocessed scanner logs
+              {scan.status === "CANCELLED" || scan.status === "RUNNING"
+                ? " (partial — scan was stopped before finishing)"
+                : ""}
+              . Everything above is parsed and normalized from this output.
+            </CardDescription>
+          </CardHeader>
+          {rawOutputOpen && (
+            <CardContent className="flex flex-col gap-3">
               {scan.stdout_log && (
                 <pre className="max-h-80 overflow-auto rounded-md border border-border bg-muted/50 px-3 py-2 font-mono text-xs text-foreground whitespace-pre-wrap">
                   {scan.stdout_log}
@@ -195,23 +275,10 @@ export function ScanDetail({ scanId }: { scanId: string }) {
                   {scan.stderr_log}
                 </pre>
               )}
-            </div>
+            </CardContent>
           )}
-        </CardContent>
-      </Card>
-
-      <ScanRiskSection scanId={scan.scan_id} scanStatus={scan.status} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Vulnerability Findings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <RiskList scanId={scan.scan_id} />
-        </CardContent>
-      </Card>
-
-      <ScanReportsSection scanId={scan.scan_id} scanStatus={scan.status} />
+        </Card>
+      )}
 
       <Link
         href={`/audit?scan_id=${scan.scan_id}`}

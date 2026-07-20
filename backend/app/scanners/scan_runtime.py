@@ -12,7 +12,7 @@ single-process deployment; a multi-worker deployment would need a shared
 store (e.g. Redis) instead.
 """
 
-import subprocess
+import subprocess  # nosec B404 -- handle tracking only, no invocation (see scanner_executor.py)
 import threading
 import uuid
 

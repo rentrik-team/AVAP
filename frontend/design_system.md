@@ -1032,7 +1032,8 @@ Sidebar characteristics:
 - compact section grouping
 - smooth collapse transition
 
-Recommended navigation hierarchy:
+Recommended navigation hierarchy (scan-centric — implemented in
+`constants/navigation.ts`):
 
 ```text
 Overview
@@ -1040,21 +1041,21 @@ Overview
 Operations
 - Targets
 - Scans
+- Assets
 
 Security
-- Assets
+- Findings
 - Vulnerabilities
-- Risk
-
-Intelligence
-- AI Remediation
 
 Outputs
 - Reports
-
-System
 - Audit Events
 ```
+
+Risk and AI Remediation are deliberately not primary destinations: risk is
+calculated and displayed on a scan's detail page (the workflow hub) and
+platform-wide as Findings, and AI remediation is generated from a
+finding's remediation sheet. Legacy `/risk` redirects to `/findings`.
 
 Do not add future modules to navigation.
 

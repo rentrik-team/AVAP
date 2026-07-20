@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import httpx
@@ -10,7 +11,7 @@ from app.core.exceptions import AIProviderConfigurationException, AIProviderExce
 
 
 def _settings(**overrides) -> Settings:
-    defaults = {
+    defaults: dict[str, Any] = {
         "openrouter_api_key": "test-key",
         "openrouter_base_url": "https://openrouter.ai/api/v1",
         "openrouter_model": "test-model",

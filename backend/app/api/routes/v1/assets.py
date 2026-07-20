@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.dependencies.database import get_db
 from app.api.responses.api_response import SuccessResponse
 from app.repositories.asset_repository import AssetRepository
-from app.schemas.asset import AssetDetailResponse, AssetListResponse, AssetResponse
+from app.schemas.asset import AssetDetailResponse, AssetListResponse
 from app.services.asset_service import AssetService
 
 router = APIRouter()
@@ -32,9 +32,12 @@ def list_assets(
     target_id: uuid.UUID | None = Query(
         None, description="Filter to assets discovered via scans of this target"
     ),
+    scan_id: uuid.UUID | None = Query(
+        None, description="Filter to assets discovered by this specific scan"
+    ),
     service: AssetService = Depends(get_asset_service),
 ) -> dict:
-    """Retrieve a paginated, filtered list of assets."""
+    """Retrieve a paginated, filtered list of assets, including their open services."""
     items, total = service.get_all_assets(
         skip=skip,
         limit=limit,
@@ -43,9 +46,10 @@ def list_assets(
         port=port,
         cve=cve,
         target_id=target_id,
+        scan_id=scan_id,
     )
 
-    asset_responses = [AssetResponse.model_validate(item) for item in items]
+    asset_responses = [AssetDetailResponse.model_validate(item) for item in items]
     return {"data": AssetListResponse(assets=asset_responses, total=total)}
 
 

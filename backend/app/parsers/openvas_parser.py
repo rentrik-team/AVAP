@@ -36,7 +36,8 @@ class OpenVASParser(BaseParser):
     def _parse_port_protocol(
         self, port_str: str | None
     ) -> tuple[int | None, str | None]:
-        """Parse port/protocol string (e.g., '80/tcp', 'general/tcp', '123') into port and protocol.
+        """Parse a port/protocol string (e.g. '80/tcp', 'general/tcp',
+        '123') into port and protocol.
 
         Returns:
             Tuple of (port, protocol)
@@ -220,7 +221,8 @@ class OpenVASParser(BaseParser):
         for host_ip, service_dict in grouped_data.items():
             parsed_services: list[ParsedService] = []
             for (port_val, protocol), vulns in service_dict.items():
-                # We normalize "None" ports to port 0 (standard for general system-level findings)
+                # We normalize "None" ports to port 0 (standard for general
+                # system-level findings)
                 p_id = port_val if port_val is not None else 0
                 proto = protocol if protocol is not None else "tcp"
 

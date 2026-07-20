@@ -66,6 +66,7 @@ def test_update_target(db_session):
 
     # Verify in DB
     retrieved = repo.get_by_id(created.id)
+    assert retrieved is not None
     assert retrieved.target == "192.168.1.51"
 
 
@@ -105,6 +106,7 @@ def test_update_does_not_commit(db_session):
     db_session.rollback()
 
     reloaded = repo.get_by_id(created.id)
+    assert reloaded is not None
     assert reloaded.target == "10.5.5.2"
 
 

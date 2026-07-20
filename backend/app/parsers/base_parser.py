@@ -19,7 +19,8 @@ class BaseParser(ABC):
             artifact: The ScanArtifact produced by the Scanner Engine.
 
         Returns:
-            A unified AssessmentPackage containing normalized hosts, services, and vulnerabilities.
+            A unified AssessmentPackage containing normalized hosts,
+            services, and vulnerabilities.
 
         Raises:
             ParserException if parsing, validation, or schema loading fails.

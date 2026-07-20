@@ -332,7 +332,8 @@ def test_scan_finding_created(db_session, inventory_service, scan_job):
 
 
 def test_scan_finding_service_only(db_session, inventory_service, scan_job):
-    """Service without vulns should still create a finding linking scan + asset + service."""
+    """Service without vulns should still create a finding linking
+    scan + asset + service."""
     svc = ParsedService(port=53, protocol="udp", service_name="dns")
     host = ParsedHost(ipv4="10.0.3.2", services=[svc])
     pkg = _make_package(scan_job.id, [host])
@@ -349,6 +350,41 @@ def test_scan_finding_service_only(db_session, inventory_service, scan_job):
     assert len(findings) == 1
     assert findings[0].vulnerability_id is None
     assert findings[0].service_id is not None
+
+
+def test_scan_finding_created_for_host_with_no_services(
+    db_session, inventory_service, scan_job
+):
+    """A host that is up but has no open services must still get a
+    ScanFinding (both vulnerability_id and service_id null), so it remains
+    visible through target-scoped asset/vulnerability list joins.
+    """
+    host = ParsedHost(ipv4="10.0.3.3", services=[])
+    pkg = _make_package(scan_job.id, [host])
+
+    inventory_service.process_assessment_package(pkg)
+
+    findings = (
+        db_session.execute(
+            select(ScanFinding).where(ScanFinding.scan_id == scan_job.id)
+        )
+        .scalars()
+        .all()
+    )
+    assert len(findings) == 1
+    assert findings[0].vulnerability_id is None
+    assert findings[0].service_id is None
+
+    asset = (
+        db_session.execute(select(Asset).where(Asset.ipv4 == "10.0.3.3"))
+        .scalars()
+        .one()
+    )
+    assets, total = inventory_service.asset_repository.get_all(
+        target_id=scan_job.target_id
+    )
+    assert total == 1
+    assert asset.id in {a.id for a in assets}
 
 
 # --- ScanFinding Duplicate Prevention ---
@@ -466,7 +502,8 @@ def test_scan_status_failed_after_error(db_session, inventory_service, scan_job)
 
 
 def test_cve_normalization(db_session, inventory_service, scan_job):
-    """Verify that CVEs are normalized to uppercase and stripped, preventing duplicates."""
+    """Verify that CVEs are normalized to uppercase and stripped,
+    preventing duplicates."""
     # First vuln with lowercase and trailing space CVE
     v1 = ParsedVulnerability(
         name="CVE-Test",
@@ -512,7 +549,8 @@ def test_cve_normalization(db_session, inventory_service, scan_job):
 
 
 def test_duplicate_hosts_in_package(db_session, inventory_service, scan_job):
-    """Verify that duplicate host entries in the same package are handled without creating duplicate assets."""
+    """Verify that duplicate host entries in the same package are handled
+    without creating duplicate assets."""
     h1 = ParsedHost(ipv4="10.0.9.1", hostname="host-first", operating_system="Linux")
     h2 = ParsedHost(
         ipv4="10.0.9.1", hostname="host-second", operating_system="Linux Kernel"
@@ -538,7 +576,8 @@ def test_duplicate_hosts_in_package(db_session, inventory_service, scan_job):
 
 
 def test_duplicate_services_in_package(db_session, inventory_service, scan_job):
-    """Verify that duplicate service entries in the same host package are handled without creating duplicate services."""
+    """Verify that duplicate service entries in the same host package are
+    handled without creating duplicate services."""
     s1 = ParsedService(port=80, protocol="tcp", service_name="http", product="Apache")
     s2 = ParsedService(
         port=80, protocol="tcp", service_name="http", product="Apache HTTPD"
@@ -568,7 +607,8 @@ def test_duplicate_services_in_package(db_session, inventory_service, scan_job):
 
 
 def test_duplicate_findings_in_package(db_session, inventory_service, scan_job):
-    """Verify that duplicate vulnerability/finding entries in the same service package are handled without creating duplicate findings."""
+    """Verify that duplicate vulnerability/finding entries in the same
+    service package are handled without creating duplicate findings."""
     v1 = ParsedVulnerability(
         name="DupFinding",
         severity_score=6.0,

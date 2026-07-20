@@ -32,7 +32,7 @@ export interface AssetDetailResponse extends AssetResponse {
 }
 
 export interface AssetListResponse {
-  assets: AssetResponse[];
+  assets: AssetDetailResponse[];
   total: number;
 }
 
@@ -40,11 +40,13 @@ export interface AssetListResponse {
  * `ip` is an exact match server-side; `hostname`/`cve` are case-insensitive
  * substrings; `port` is exact. `target_id` scopes to assets discovered via
  * scans of that target (Asset has no direct target_id — the backend joins
- * through scan_findings/scan_jobs). */
+ * through scan_findings/scan_jobs). `scan_id` scopes to assets discovered by
+ * one specific scan (a direct scan_findings.scan_id match). */
 export interface AssetListFilters {
   ip?: string;
   hostname?: string;
   port?: number;
   cve?: string;
   target_id?: string;
+  scan_id?: string;
 }

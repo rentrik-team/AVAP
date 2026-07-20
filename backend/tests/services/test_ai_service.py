@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
+from app.ai.manager import AIManager
 from app.ai.provider import AIProviderResponse
 from app.core.enums import RiskLevel, RiskScope, ScanStatus, TargetType
 from app.core.exceptions import (
@@ -36,7 +37,7 @@ VALID_OUTPUT = {
 }
 
 
-class FakeAIManager:
+class FakeAIManager(AIManager):
     """Test double at the AI Manager boundary — not a mock of AIService itself."""
 
     def __init__(

@@ -55,8 +55,8 @@ def test_execution_validator_unsupported_targets():
 def test_execution_validator_shell_characters():
     validator = ExecutionValidator()
 
-    # Even if hostname/IP format is syntactically passable (unlikely due to regex, but test defense-in-depth)
-    # let's try injection attempts
+    # Even if hostname/IP format is syntactically passable (unlikely due
+    # to regex, but test defense-in-depth) let's try injection attempts
     injection_targets = [
         "127.0.0.1; cat /etc/passwd",
         "127.0.0.1 && id",

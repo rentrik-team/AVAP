@@ -37,7 +37,8 @@ def test_security_target_validation_metacharacters():
 
 
 def test_security_option_injection_prevention():
-    """Verify that NmapAdapter blocks arguments starting with '-' to prevent option injection."""
+    """Verify that NmapAdapter blocks arguments starting with '-' to
+    prevent option injection."""
     adapter = NmapAdapter()
 
     injection_targets = [

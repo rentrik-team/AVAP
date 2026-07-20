@@ -25,6 +25,7 @@ function sampleAsset(overrides: Partial<Parameters<typeof Object.assign>[0]> = {
     operating_system: "Linux",
     created_at: "2026-07-15T00:00:00Z",
     updated_at: "2026-07-15T00:00:00Z",
+    services: [],
     ...overrides,
   };
 }
@@ -77,6 +78,28 @@ describe("AssetList — states", () => {
 
     await waitFor(() => expect(screen.getAllByText("10.0.0.5")[0]).toBeInTheDocument());
     expect(screen.getAllByText("web.local")[0]).toBeInTheDocument();
+  });
+
+  it("scopes the query to scanId and renders that asset's services", async () => {
+    mockedGetAssets.mockResolvedValue({
+      assets: [
+        sampleAsset({
+          services: [
+            { id: "s1", port: 22, protocol: "tcp", service_name: "ssh", product: null, version: null, extra_info: null, created_at: "2026-07-15T00:00:00Z", updated_at: "2026-07-15T00:00:00Z" },
+          ],
+        }),
+      ],
+      total: 1,
+    });
+
+    renderWithQueryClient(<AssetList scanId="scan-123" />);
+
+    await waitFor(() =>
+      expect(mockedGetAssets).toHaveBeenLastCalledWith(
+        expect.objectContaining({ scan_id: "scan-123" })
+      )
+    );
+    await waitFor(() => expect(screen.getAllByText(/22\/TCP/)[0]).toBeInTheDocument());
   });
 });
 

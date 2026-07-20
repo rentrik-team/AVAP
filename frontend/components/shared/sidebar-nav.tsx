@@ -27,44 +27,25 @@ export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
               item.href === "/"
                 ? pathname === "/"
                 : pathname === item.href || pathname.startsWith(`${item.href}/`);
-            const content = (
-              <span
-                className={cn(
-                  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  collapsed && "justify-center px-0",
-                  item.enabled && isActive && "bg-accent text-accent-foreground",
-                  item.enabled &&
-                    !isActive &&
-                    "text-foreground/80 hover:bg-accent/60 hover:text-accent-foreground",
-                  !item.enabled && "text-muted-foreground/60"
-                )}
-              >
-                <item.icon className="size-4.5 shrink-0" aria-hidden="true" />
-                {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
-                {!collapsed && !item.enabled && (
-                  <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                    Soon
-                  </span>
-                )}
-              </span>
-            );
-
-            const trigger = item.enabled ? (
+            const trigger = (
               <Link
                 href={item.href}
                 aria-current={isActive ? "page" : undefined}
                 className="block"
               >
-                {content}
+                <span
+                  className={cn(
+                    "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    collapsed && "justify-center px-0",
+                    isActive && "bg-accent text-accent-foreground",
+                    !isActive &&
+                      "text-foreground/80 hover:bg-accent/60 hover:text-accent-foreground"
+                  )}
+                >
+                  <item.icon className="size-4.5 shrink-0" aria-hidden="true" />
+                  {!collapsed && <span className="flex-1 truncate">{item.label}</span>}
+                </span>
               </Link>
-            ) : (
-              <span
-                aria-disabled="true"
-                aria-label={`${item.label} — not yet available`}
-                className="block cursor-not-allowed"
-              >
-                {content}
-              </span>
             );
 
             if (!collapsed) {
@@ -74,10 +55,7 @@ export function SidebarNav({ collapsed = false }: { collapsed?: boolean }) {
             return (
               <Tooltip key={item.href}>
                 <TooltipTrigger asChild>{trigger}</TooltipTrigger>
-                <TooltipContent side="right">
-                  {item.label}
-                  {!item.enabled && " — coming soon"}
-                </TooltipContent>
+                <TooltipContent side="right">{item.label}</TooltipContent>
               </Tooltip>
             );
           })}

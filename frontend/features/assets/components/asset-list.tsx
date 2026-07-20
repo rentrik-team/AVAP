@@ -17,10 +17,14 @@ import { formatCount } from "@/utils/format";
 
 const PAGE_SIZE = 50;
 
-/** `targetId`, when given, scopes the list to assets discovered via scans
- * of that target (used by the Target detail page) instead of the global
- * inventory. Not user-editable via the filter bar — it's a fixed scope. */
-export function AssetList({ targetId }: { targetId?: string } = {}) {
+/** `targetId`/`scanId`, when given, scope the list to assets discovered via
+ * scans of that target, or by one specific scan (used by the Target detail
+ * and Scan detail pages respectively) instead of the global inventory. Not
+ * user-editable via the filter bar — it's a fixed scope. */
+export function AssetList({
+  targetId,
+  scanId,
+}: { targetId?: string; scanId?: string } = {}) {
   const [skip, setSkip] = useState(0);
   const [filters, setFilters] = useState<AssetListFilters>({});
   const [appliedFilters, setAppliedFilters] = useState(filters);
@@ -49,6 +53,7 @@ export function AssetList({ targetId }: { targetId?: string } = {}) {
     limit: PAGE_SIZE,
     ...filters,
     target_id: targetId,
+    scan_id: scanId,
   });
 
   return (
@@ -79,9 +84,11 @@ export function AssetList({ targetId }: { targetId?: string } = {}) {
             icon={Server}
             title="No assets have been discovered yet"
             description={
-              targetId
-                ? "Assets are populated automatically when a scan completes against this target. Start a scan to begin building the inventory."
-                : "Assets are populated automatically when a scan completes against a target. Start a scan to begin building the inventory."
+              scanId
+                ? "This scan discovered no hosts, or hasn't completed yet."
+                : targetId
+                  ? "Assets are populated automatically when a scan completes against this target. Start a scan to begin building the inventory."
+                  : "Assets are populated automatically when a scan completes against a target. Start a scan to begin building the inventory."
             }
           />
         )

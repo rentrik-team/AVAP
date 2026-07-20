@@ -50,18 +50,21 @@ class ExecutionValidator:
 
         if not target_type:
             raise ValidationException(
-                f"Invalid target format: '{target}' is not a valid IPv4 address, CIDR range, or hostname."
+                f"Invalid target format: '{target}' is not a valid IPv4 "
+                "address, CIDR range, or hostname."
             )
 
         # Check scanner support for the target type
         allowed_types = self._supported_targets.get(scanner_type, set())
         if target_type not in allowed_types:
             raise ValidationException(
-                f"Scanner {scanner_type.value} does not support target type '{target_type}' ('{target}')."
+                f"Scanner {scanner_type.value} does not support target "
+                f"type '{target_type}' ('{target}')."
             )
 
         # Additional defense-in-depth sanitization check
-        # Even though we use shell=False, we explicitly reject targets containing common shell metacharacters
+        # Even though we use shell=False, we explicitly reject targets
+        # containing common shell metacharacters
         shell_chars = [";", "&&", "||", "|", "`", "$", "(", ")", "<", ">", "\n", "\r"]
         if any(char in target for char in shell_chars):
             raise ValidationException(

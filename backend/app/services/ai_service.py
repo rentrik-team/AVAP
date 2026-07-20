@@ -119,7 +119,8 @@ class AIService:
         risk_assessment = self._get_vulnerability_risk_assessment(risk_assessment_id)
         if risk_assessment.vulnerability_id is None:
             raise InternalException(
-                "VULNERABILITY-scoped risk assessment unexpectedly has no vulnerability_id."
+                "VULNERABILITY-scoped risk assessment unexpectedly has no "
+                "vulnerability_id."
             )
 
         vulnerability = self.vulnerability_repository.get_by_id(

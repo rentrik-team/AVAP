@@ -10,14 +10,14 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { AssetResponse } from "@/features/assets/types/asset";
+import type { AssetDetailResponse } from "@/features/assets/types/asset";
 
 export function AssetRowActions({
   asset,
   onDeleteRequest,
 }: {
-  asset: AssetResponse;
-  onDeleteRequest: (asset: AssetResponse) => void;
+  asset: AssetDetailResponse;
+  onDeleteRequest: (asset: AssetDetailResponse) => void;
 }) {
   return (
     <DropdownMenu>

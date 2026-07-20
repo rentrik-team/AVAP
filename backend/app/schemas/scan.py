@@ -53,11 +53,6 @@ class ScanResponse(BaseModel):
     failure_reason: str | None = Field(
         default=None, description="Reason for failure if the scan failed."
     )
-    output_file_path: str | None = Field(
-        default=None,
-        description="Path to the scanner's raw output file (populated even for "
-        "cancelled/timed-out runs, since scanners flush results incrementally).",
-    )
     stdout_log: str | None = Field(
         default=None, description="Captured stdout from the scanner process."
     )

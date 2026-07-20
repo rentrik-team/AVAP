@@ -21,7 +21,6 @@ export interface ScanResponse {
   completed_at: string | null;
   execution_duration: number | null;
   failure_reason: string | null;
-  output_file_path: string | null;
   stdout_log: string | null;
   stderr_log: string | null;
 }

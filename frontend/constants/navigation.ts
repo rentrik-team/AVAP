@@ -1,20 +1,19 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Bug,
   Crosshair,
   FileText,
-  Gauge,
   LayoutDashboard,
   Radar,
   ScrollText,
-  Sparkles,
+  Server,
+  ShieldAlert,
 } from "lucide-react";
 
 export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
-  /** False for backend resources not yet implemented in the frontend. */
-  enabled: boolean;
 }
 
 export interface NavSection {
@@ -23,56 +22,49 @@ export interface NavSection {
 }
 
 /**
- * Navigation taxonomy aligned to existing backend resources (Modules
- * 01–10). Every module with a genuine "browse a collection" endpoint now
- * has a route: Overview (09), Targets (01), Scans (02), Risk (06),
- * Reports (08), Audit Events (10).
+ * Scan-centric product taxonomy — the sidebar mirrors the assessment
+ * workflow (add a target → scan it → review what was discovered → act on
+ * the outputs), not the backend module list.
  *
- * Assets and Vulnerabilities (Module 05) are intentionally NOT given their
- * own top-level nav entries: both are scanner-discovered inventory with no
- * meaning independent of the target that produced them, so a flat
- * ungrouped "everything at once" list would misrepresent the data. They're
- * reached target-wise instead, as sections on a Target's detail page
- * (/targets/{id}) — the per-entity detail routes (/assets/{id},
- * /vulnerabilities/{id}) still exist for drill-down from there.
+ * - Operations: the things you manage and run — Targets, the Scans that
+ *   execute against them, and the Assets those scans discover.
+ * - Security: what the platform concluded — Findings (deterministic
+ *   risk-scored results from the Risk Engine, with AI remediation actions)
+ *   and Vulnerabilities (the normalized identity catalog, including
+ *   AI-inferred entries labelled as such).
+ * - Outputs: generated artifacts and evidence — Reports and the
+ *   append-only Audit trail.
  *
- * AI Remediation (Module 07) is intentionally NOT given its own nav entry
- * or route: there is no `GET /ai/recommendations` collection endpoint to
- * list, only per-assessment retrieval — a standalone page would have
- * nothing to browse without first knowing a specific VULNERABILITY-scope
- * assessment id. AI remediation is reachable from the Risk page instead,
- * via the "Remediation" action on VULNERABILITY-scope rows.
+ * Risk and AI are deliberately NOT primary destinations: risk is
+ * calculated from, and displayed on, a scan's detail page (the workflow
+ * hub), and AI remediation is generated from a finding's remediation
+ * sheet there and on /findings. Legacy /risk redirects to /findings.
  */
 export const NAV_SECTIONS: NavSection[] = [
   {
     label: null,
-    items: [{ label: "Overview", href: "/", icon: LayoutDashboard, enabled: true }],
+    items: [{ label: "Overview", href: "/", icon: LayoutDashboard }],
   },
   {
     label: "Operations",
     items: [
-      { label: "Targets", href: "/targets", icon: Crosshair, enabled: true },
-      { label: "Scans", href: "/scans", icon: Radar, enabled: true },
+      { label: "Targets", href: "/targets", icon: Crosshair },
+      { label: "Scans", href: "/scans", icon: Radar },
+      { label: "Assets", href: "/assets", icon: Server },
     ],
   },
   {
     label: "Security",
-    items: [{ label: "Risk", href: "/risk", icon: Gauge, enabled: true }],
-  },
-  {
-    label: "Intelligence",
     items: [
-      { label: "AI Remediation", href: "/ai", icon: Sparkles, enabled: false },
+      { label: "Findings", href: "/findings", icon: ShieldAlert },
+      { label: "Vulnerabilities", href: "/vulnerabilities", icon: Bug },
     ],
   },
   {
     label: "Outputs",
-    items: [{ label: "Reports", href: "/reports", icon: FileText, enabled: true }],
-  },
-  {
-    label: "System",
     items: [
-      { label: "Audit Events", href: "/audit", icon: ScrollText, enabled: true },
+      { label: "Reports", href: "/reports", icon: FileText },
+      { label: "Audit Events", href: "/audit", icon: ScrollText },
     ],
   },
 ];

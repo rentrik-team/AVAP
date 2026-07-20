@@ -42,7 +42,8 @@ class ParserManager:
         # 1. Check artifact status
         if not artifact.is_successful:
             raise ParserException(
-                f"Cannot parse unsuccessful scan artifact. Execution status: {artifact.execution_status.value}"
+                "Cannot parse unsuccessful scan artifact. "
+                f"Execution status: {artifact.execution_status.value}"
             )
 
         # 2. Check output file existence

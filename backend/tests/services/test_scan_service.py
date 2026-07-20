@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from app.ai.manager import AIManager
 from app.ai.provider import AIProviderResponse
 from app.core.enums import ScanStatus, TargetType
 from app.core.exceptions import ConflictException, NotFoundException
@@ -18,7 +19,7 @@ from app.services.audit_service import AuditService
 from app.services.scan_service import ScanService
 
 
-class _NoOpAIManager:
+class _NoOpAIManager(AIManager):
     """Stands in for AIManager so the background pipeline's AI vulnerability
     discovery step never makes a real network call during tests — it always
     returns zero findings instantly. A real AIManager() would otherwise be
@@ -26,7 +27,9 @@ class _NoOpAIManager:
     the environment's .env, making the suite network-dependent and slow."""
 
     def generate(self, prompt):
-        return AIProviderResponse(content='{"findings": []}', provider="test", model="test")
+        return AIProviderResponse(
+            content='{"findings": []}', provider="test", model="test"
+        )
 
 
 # A minimal, valid Nmap XML report so a "successful" mock dispatch can be
@@ -41,7 +44,8 @@ _MOCK_NMAP_XML = """<?xml version="1.0" encoding="UTF-8"?>
     <ports>
       <port protocol="tcp" portid="80">
         <state state="open" reason="syn-ack" reason_ttl="64"/>
-        <service name="http" product="Apache httpd" version="2.4.41" method="probed" conf="10"/>
+        <service name="http" product="Apache httpd" version="2.4.41"
+                 method="probed" conf="10"/>
       </port>
     </ports>
   </host>
@@ -138,6 +142,7 @@ def test_create_scan_success(scan_service, test_target):
 
     # Deterministically wait for the background thread rather than racing
     # it, then confirm it ran the engine and drove the job to completion.
+    assert scan_service.last_scan_thread is not None
     scan_service.last_scan_thread.join(timeout=5)
     scan_service.scan_repository.session.refresh(scan_job)
 
@@ -177,6 +182,7 @@ def test_create_scan_already_running(db_session, test_target):
         scan_service.create_scan(request)
 
     blocking_engine.release_event.set()
+    assert scan_service.last_scan_thread is not None
     scan_service.last_scan_thread.join(timeout=5)
 
 
@@ -187,6 +193,7 @@ def test_get_scan(scan_service, test_target):
     # Join before touching the shared session again from this thread: the
     # background thread uses the same db_session, which isn't safe for
     # concurrent multi-thread access.
+    assert scan_service.last_scan_thread is not None
     scan_service.last_scan_thread.join(timeout=5)
 
     retrieved_scan = scan_service.get_scan(created_scan.id)
@@ -237,6 +244,7 @@ def test_delete_running_scan_fails(db_session, test_target):
         scan_service.delete_scan(created_scan.id)
 
     blocking_engine.release_event.set()
+    assert scan_service.last_scan_thread is not None
     scan_service.last_scan_thread.join(timeout=5)
 
 
@@ -268,6 +276,7 @@ def test_create_scan_marks_failed_on_parser_error(db_session, test_target):
     request = CreateScanRequest(target_id=test_target.id, scan_profile="full")
     created_scan = scan_service.create_scan(request)
 
+    assert scan_service.last_scan_thread is not None
     scan_service.last_scan_thread.join(timeout=5)
     db_session.refresh(created_scan)
 
@@ -276,7 +285,9 @@ def test_create_scan_marks_failed_on_parser_error(db_session, test_target):
     assert created_scan.completed_at is not None
 
 
-def test_create_scan_success_auto_calculates_risk(scan_service, test_target, db_session):
+def test_create_scan_success_auto_calculates_risk(
+    scan_service, test_target, db_session
+):
     """A completed scan's discovered inventory should automatically get a
     risk assessment, without any separate manual trigger."""
     from app.core.enums import RiskScope
@@ -284,6 +295,7 @@ def test_create_scan_success_auto_calculates_risk(scan_service, test_target, db_
 
     request = CreateScanRequest(target_id=test_target.id, scan_profile="full")
     scan_job = scan_service.create_scan(request)
+    assert scan_service.last_scan_thread is not None
     scan_service.last_scan_thread.join(timeout=5)
     db_session.refresh(scan_job)
 
@@ -309,9 +321,19 @@ def test_get_all_scans_filters_by_target_id(db_session, target_repo):
     scan_repo = ScanRepository(db_session)
     from app.models.scan_job import ScanJob
 
-    scan_repo.create(ScanJob(target_id=target_a.id, scan_type="full", status=ScanStatus.COMPLETED))
-    scan_repo.create(ScanJob(target_id=target_b.id, scan_type="full", status=ScanStatus.COMPLETED))
-    scan_repo.create(ScanJob(target_id=target_a.id, scan_type="full", status=ScanStatus.FAILED))
+    scan_repo.create(
+        ScanJob(
+            target_id=target_a.id, scan_type="full", status=ScanStatus.COMPLETED
+        )
+    )
+    scan_repo.create(
+        ScanJob(
+            target_id=target_b.id, scan_type="full", status=ScanStatus.COMPLETED
+        )
+    )
+    scan_repo.create(
+        ScanJob(target_id=target_a.id, scan_type="full", status=ScanStatus.FAILED)
+    )
 
     service = ScanService(
         scan_repo,

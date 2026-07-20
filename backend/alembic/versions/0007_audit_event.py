@@ -156,7 +156,8 @@ def upgrade() -> None:
             f"""
             CREATE FUNCTION {_TRIGGER_FUNCTION}() RETURNS trigger AS $$
             BEGIN
-                RAISE EXCEPTION 'audit_events rows are append-only and cannot be % (id=%)',
+                RAISE EXCEPTION
+                    'audit_events rows are append-only and cannot be % (id=%)',
                     TG_OP, OLD.id;
                 RETURN NULL;
             END;

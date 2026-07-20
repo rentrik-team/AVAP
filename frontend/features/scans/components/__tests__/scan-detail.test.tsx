@@ -1,4 +1,5 @@
 import { screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { renderWithQueryClient } from "@/test/render";
@@ -47,7 +48,6 @@ describe("ScanDetail", () => {
       completed_at: null,
       execution_duration: null,
       failure_reason: null,
-      output_file_path: null,
       stdout_log: null,
       stderr_log: null,
     });
@@ -85,7 +85,6 @@ describe("ScanDetail", () => {
       completed_at: "2026-07-15T00:01:00Z",
       execution_duration: 60,
       failure_reason: "Scanner execution timed out.",
-      output_file_path: null,
       stdout_log: null,
       stderr_log: null,
     });
@@ -107,5 +106,56 @@ describe("ScanDetail", () => {
     expect(await screen.findByText("Scanner execution timed out.")).toBeInTheDocument();
     // A terminal (non-RUNNING) scan can be deleted.
     expect(screen.getByRole("button", { name: /delete/i })).toBeEnabled();
+  });
+
+  it("renders the full scan workflow sections, with raw output collapsed until expanded", async () => {
+    mockedGetScan.mockResolvedValue({
+      scan_id: "55555555-5555-5555-5555-555555555555",
+      target_id: "22222222-2222-2222-2222-222222222222",
+      status: "COMPLETED",
+      scan_type: "full",
+      created_at: "2026-07-15T00:00:00Z",
+      updated_at: "2026-07-15T00:02:00Z",
+      started_at: "2026-07-15T00:00:00Z",
+      completed_at: "2026-07-15T00:02:00Z",
+      execution_duration: 120,
+      failure_reason: null,
+      stdout_log: "Nmap scan report for 10.0.0.5",
+      stderr_log: null,
+    });
+    mockedGetScanStatus.mockResolvedValue({
+      scan_id: "55555555-5555-5555-5555-555555555555",
+      status: "COMPLETED",
+      updated_at: "2026-07-15T00:02:00Z",
+    });
+    mockedGetTarget.mockResolvedValue({
+      id: "22222222-2222-2222-2222-222222222222",
+      target: "10.0.0.5",
+      target_type: "IPV4",
+      created_at: "2026-07-15T00:00:00Z",
+      updated_at: "2026-07-15T00:00:00Z",
+    });
+
+    renderWithQueryClient(<ScanDetail scanId="55555555-5555-5555-5555-555555555555" />);
+
+    // Every stage of the product workflow has a visible section.
+    expect(
+      await screen.findByText("Discovered Hosts & Services")
+    ).toBeInTheDocument();
+    expect(screen.getByText("Security Analysis")).toBeInTheDocument();
+    expect(screen.getByText("Risk Assessment")).toBeInTheDocument();
+    expect(screen.getByText("Findings & Remediation")).toBeInTheDocument();
+    expect(screen.getByText("Reports")).toBeInTheDocument();
+
+    // Raw scanner output is optional/expandable: hidden until toggled.
+    expect(
+      screen.queryByText("Nmap scan report for 10.0.0.5")
+    ).not.toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: /raw scanner output/i })
+    );
+    expect(
+      screen.getByText("Nmap scan report for 10.0.0.5")
+    ).toBeInTheDocument();
   });
 });

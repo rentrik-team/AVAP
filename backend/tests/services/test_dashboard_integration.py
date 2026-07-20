@@ -10,6 +10,7 @@ from datetime import timedelta
 
 from fastapi.testclient import TestClient
 
+from app.ai.manager import AIManager
 from app.ai.provider import AIProviderResponse
 from app.core.config import Settings
 from app.core.enums import RiskScope, ScanStatus, TargetType
@@ -38,7 +39,7 @@ from app.services.report_service import ReportService
 from app.services.risk_service import RiskService
 
 
-class _FakeProviderBoundaryManager:
+class _FakeProviderBoundaryManager(AIManager):
     """A fake at the real Module 07 AI Manager interface boundary, used only
     to prepare a genuine, validated AIRecommendation fixture via the actual
     Module 07 service.
@@ -159,6 +160,7 @@ def test_module05_through_module09_end_to_end(client: TestClient, db_session, tm
     stale_recommendation = ai_recommendation_repository.get_by_risk_assessment(
         stale_target_risk.id
     )
+    assert stale_recommendation is not None
     stale_recommendation.generated_at = stale_target_risk.calculated_at - timedelta(
         hours=1
     )

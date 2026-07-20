@@ -78,7 +78,8 @@ class InventoryService:
     def _upsert_service(
         self, asset_id: uuid.UUID, parsed_service: ParsedService
     ) -> NetworkService:
-        """Upsert a NetworkService on a specific asset using asset_id + port + protocol."""
+        """Upsert a NetworkService on a specific asset using
+        asset_id + port + protocol."""
         stmt = select(NetworkService).where(
             NetworkService.asset_id == asset_id,
             NetworkService.port == parsed_service.port,
@@ -162,7 +163,8 @@ class InventoryService:
         vulnerability_id: uuid.UUID | None,
         service_id: uuid.UUID | None,
     ) -> None:
-        """Create a ScanFinding linking the entities, preventing duplicates (handling nulls).
+        """Create a ScanFinding linking the entities, preventing duplicates
+        (handling nulls).
 
         Public: reused by AIVulnerabilityDiscoveryService, see
         `upsert_vulnerability` above for why.
@@ -219,6 +221,22 @@ class InventoryService:
                 # 2. Upsert Asset
                 asset = self._upsert_asset(host)
 
+                # A host that is up but has no open services (e.g. all
+                # ports filtered/closed) would otherwise get an Asset row
+                # with zero ScanFinding rows, making it invisible to every
+                # target-scoped asset/vulnerability list even though the
+                # dashboard's unconditional asset count includes it. Link
+                # it to the scan directly in that case only — hosts with
+                # services already get linked per-service below, and doing
+                # this unconditionally would double-count scan findings.
+                if not host.services:
+                    self.link_finding(
+                        scan_id=package.scan_id,
+                        asset_id=asset.id,
+                        vulnerability_id=None,
+                        service_id=None,
+                    )
+
                 # Process services for this host
                 for parsed_service in host.services:
                     # 3. Upsert NetworkService
@@ -238,7 +256,8 @@ class InventoryService:
                                 service_id=service.id,
                             )
                     else:
-                        # Create ScanFinding linking scan, asset, service (without vulnerability)
+                        # Create ScanFinding linking scan, asset, service
+                        # (without vulnerability)
                         self.link_finding(
                             scan_id=package.scan_id,
                             asset_id=asset.id,

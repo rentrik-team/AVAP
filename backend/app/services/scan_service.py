@@ -19,6 +19,7 @@ from app.core.enums import (
 )
 from app.core.exceptions import (
     ConflictException,
+    InternalException,
     NotFoundException,
     ParserException,
     ScannerCancelledException,
@@ -40,7 +41,9 @@ from app.scanners.interfaces import IScannerEngine
 from app.scanners.scan_artifact import ScanArtifact
 from app.scanners.scan_runtime import ScanRuntimeRegistry
 from app.schemas.scan import CreateScanRequest
-from app.services.ai_vulnerability_discovery_service import AIVulnerabilityDiscoveryService
+from app.services.ai_vulnerability_discovery_service import (
+    AIVulnerabilityDiscoveryService,
+)
 from app.services.audit_service import AuditService
 from app.services.inventory_service import InventoryService
 from app.services.risk_service import RiskService
@@ -127,7 +130,8 @@ class ScanService:
     def create_scan(
         self, request: CreateScanRequest, audit_context: AuditContext | None = None
     ) -> ScanJob:
-        """Create a new scan job and dispatch it to the scanner engine in the background.
+        """Create a new scan job and dispatch it to the scanner engine in
+        the background.
 
         The HTTP request returns as soon as the job is persisted (status
         PENDING) — the actual scanner subprocess runs on a background
@@ -218,6 +222,16 @@ class ScanService:
             monotonic_start = time.monotonic()
 
             try:
+                if self.scanner_engine is None:
+                    # create_scan only starts this background thread inside
+                    # `if self.scanner_engine:`, so this is unreachable in
+                    # practice — narrows the type for mypy across the thread
+                    # boundary, and still routes through the same
+                    # failure-handling path below rather than raising
+                    # uncaught out of this method (see its docstring).
+                    raise InternalException(
+                        "Background scan execution started without a scanner engine."
+                    )
                 artifact = self.scanner_engine.dispatch_scan(
                     scan_id=scan_id, target=target, scan_profile=scan_profile
                 )
@@ -253,7 +267,12 @@ class ScanService:
                 # shared finalize block below is for CANCELLED/TIMEOUT/ERROR
                 # paths only and must not run for a successful dispatch.
                 self._process_successful_scan(
-                    session, scan_repo, audit_service, scan_id, artifact, monotonic_start
+                    session,
+                    scan_repo,
+                    audit_service,
+                    scan_id,
+                    artifact,
+                    monotonic_start,
                 )
                 return
 

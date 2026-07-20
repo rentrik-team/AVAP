@@ -250,11 +250,15 @@ def test_failed_calculation_leaves_no_partial_risk_state(
 # --- scan_id filter (used by the Scan Detail page's findings section) ---
 
 
-def test_get_risk_assessments_filters_by_scan_id(db_session, risk_service, scan_job, target):
+def test_get_risk_assessments_filters_by_scan_id(
+    db_session, risk_service, scan_job, target
+):
     """A scan's own findings must be retrievable in isolation from other
     scans' risk assessments — this is what lets the Scan Detail page show
     only this scan's vulnerability findings for the Remediation action."""
-    other_scan = ScanJob(target_id=target.id, status=ScanStatus.COMPLETED, scan_type="full")
+    other_scan = ScanJob(
+        target_id=target.id, status=ScanStatus.COMPLETED, scan_type="full"
+    )
     db_session.add(other_scan)
     db_session.flush()
 

@@ -7,6 +7,7 @@ PDF download.
 
 from fastapi.testclient import TestClient
 
+from app.ai.manager import AIManager
 from app.ai.provider import AIProviderResponse
 from app.core.config import Settings
 from app.core.enums import RiskScope, ScanStatus, TargetType
@@ -34,7 +35,7 @@ from app.services.report_service import ReportService
 from app.services.risk_service import RiskService
 
 
-class _FakeProviderBoundaryManager:
+class _FakeProviderBoundaryManager(AIManager):
     """A fake at the real Module 07 AI Manager interface boundary. The
     Reporting Engine itself never touches this — it is used only to
     prepare a genuine, validated AIRecommendation fixture via the actual

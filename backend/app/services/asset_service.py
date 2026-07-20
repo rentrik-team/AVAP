@@ -25,6 +25,7 @@ class AssetService:
         port: int | None = None,
         cve: str | None = None,
         target_id: uuid.UUID | None = None,
+        scan_id: uuid.UUID | None = None,
     ) -> tuple[Sequence[Asset], int]:
         """Retrieve a paginated, filtered list of assets."""
         return self.repository.get_all(
@@ -35,6 +36,7 @@ class AssetService:
             port=port,
             cve=cve,
             target_id=target_id,
+            scan_id=scan_id,
         )
 
     def get_asset(self, asset_id: uuid.UUID) -> Asset:

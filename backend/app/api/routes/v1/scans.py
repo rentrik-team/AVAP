@@ -60,7 +60,9 @@ def create_scan(
 def list_scans(
     skip: int = Query(0, ge=0, description="Offset for pagination"),
     limit: int = Query(50, ge=1, le=200, description="Max records to return"),
-    target_id: uuid.UUID | None = Query(None, description="Filter to scans of this target"),
+    target_id: uuid.UUID | None = Query(
+        None, description="Filter to scans of this target"
+    ),
     service: ScanService = Depends(get_scan_service),
 ) -> dict:
     """Retrieve a paginated list of all scan jobs."""

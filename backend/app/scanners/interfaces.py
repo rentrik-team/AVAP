@@ -9,9 +9,9 @@ class IScannerEngine(Protocol):
     """
     Interface for the Scanner Engine.
 
-    This interface abstracts the scanner execution logic from the Scan Management module,
-    allowing the Scan Management module to remain decoupled from the actual implementation
-    (Nmap, OpenVAS, etc.).
+    This interface abstracts the scanner execution logic from the Scan
+    Management module, allowing the Scan Management module to remain
+    decoupled from the actual implementation (Nmap, OpenVAS, etc.).
     """
 
     def dispatch_scan(

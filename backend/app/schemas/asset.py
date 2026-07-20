@@ -42,5 +42,5 @@ class AssetDetailResponse(AssetResponse):
 class AssetListResponse(BaseModel):
     """Response model for a paginated list of assets."""
 
-    assets: list[AssetResponse]
+    assets: list[AssetDetailResponse]
     total: int

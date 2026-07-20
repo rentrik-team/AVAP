@@ -35,7 +35,8 @@ class NmapAdapter(BaseScannerAdapter):
             The sanitized target.
         """
         sanitized = target.strip()
-        # Prevent target from starting with a hyphen, which could be interpreted as an option
+        # Prevent target from starting with a hyphen, which could be
+        # interpreted as an option
         if sanitized.startswith("-"):
             raise ScannerExecutionException(
                 f"Invalid scan target: '{target}' cannot start with a hyphen."

@@ -3,6 +3,11 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
+from app.core.enums import ScanStatus, TargetType
+from app.models.asset import Asset
+from app.models.scan_finding import ScanFinding
+from app.models.scan_job import ScanJob
+from app.models.target import Target
 from app.models.vulnerability import Vulnerability
 
 
@@ -74,6 +79,46 @@ def test_list_vulnerabilities_cve_filtering(client: TestClient, sample_vulnerabi
     data = response.json()
     assert data["data"]["total"] == 1
     assert data["data"]["vulnerabilities"][0]["name"] == "SQL Injection"
+
+
+def test_list_vulnerabilities_scan_id_filtering(
+    client: TestClient, db_session, sample_vulnerabilities
+):
+    """scan_id scopes the list to findings linked to that one scan — the
+    Scan Detail page's Security Analysis section depends on this."""
+    target = Target(target="10.0.3.1", target_type=TargetType.IPV4)
+    db_session.add(target)
+    db_session.flush()
+
+    scan = ScanJob(target_id=target.id, scan_type="full", status=ScanStatus.COMPLETED)
+    asset = Asset(ipv4="10.0.3.1")
+    db_session.add_all([scan, asset])
+    db_session.flush()
+
+    db_session.add(
+        ScanFinding(
+            scan_id=scan.id,
+            asset_id=asset.id,
+            vulnerability_id=sample_vulnerabilities["v1"].id,
+        )
+    )
+    db_session.flush()
+
+    response = client.get(f"/api/v1/vulnerabilities/?scan_id={scan.id}")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["data"]["total"] == 1
+    assert data["data"]["vulnerabilities"][0]["name"] == "SQL Injection"
+
+    # A scan with no findings returns an empty, well-formed list.
+    other_scan = ScanJob(
+        target_id=target.id, scan_type="full", status=ScanStatus.COMPLETED
+    )
+    db_session.add(other_scan)
+    db_session.flush()
+    response = client.get(f"/api/v1/vulnerabilities/?scan_id={other_scan.id}")
+    assert response.status_code == 200
+    assert response.json()["data"]["total"] == 0
 
 
 # --- Detail ---

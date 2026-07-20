@@ -7,6 +7,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from app.ai.manager import AIManager
+from app.ai.provider import AIProviderResponse
 from app.api.routes.v1.scans import get_scan_service
 from app.core.enums import ExecutionStatus, ScanStatus
 from app.main import app
@@ -16,18 +18,19 @@ from app.repositories.scan_repository import ScanRepository
 from app.repositories.target_repository import TargetRepository
 from app.scanners.interfaces import IScannerEngine
 from app.scanners.scan_artifact import ScanArtifact
-from app.ai.provider import AIProviderResponse
 from app.services.audit_service import AuditService
 from app.services.scan_service import ScanService
 
 
-class _NoOpAIManager:
+class _NoOpAIManager(AIManager):
     """Stands in for AIManager so the background pipeline's AI vulnerability
     discovery step never makes a real network call during tests — see the
     identical test double in tests/services/test_scan_service.py for why."""
 
     def generate(self, prompt):
-        return AIProviderResponse(content='{"findings": []}', provider="test", model="test")
+        return AIProviderResponse(
+            content='{"findings": []}', provider="test", model="test"
+        )
 
 
 # A minimal, valid Nmap XML report so a "successful" mock dispatch can be
@@ -42,7 +45,8 @@ _MOCK_NMAP_XML = """<?xml version="1.0" encoding="UTF-8"?>
     <ports>
       <port protocol="tcp" portid="80">
         <state state="open" reason="syn-ack" reason_ttl="64"/>
-        <service name="http" product="Apache httpd" version="2.4.41" method="probed" conf="10"/>
+        <service name="http" product="Apache httpd" version="2.4.41"
+                 method="probed" conf="10"/>
       </port>
     </ports>
   </host>
@@ -82,7 +86,9 @@ class MockScannerEngine(IScannerEngine):
         )
 
 
-def wait_for_status(client: TestClient, scan_id: str, expected: str, timeout: float = 5.0):
+def wait_for_status(
+    client: TestClient, scan_id: str, expected: str, timeout: float = 5.0
+):
     """Poll GET /scans/{id}/status until it reports `expected`.
 
     Scan dispatch runs on a background thread now, so its status transitions
@@ -97,7 +103,9 @@ def wait_for_status(client: TestClient, scan_id: str, expected: str, timeout: fl
         if last_seen == expected:
             return
         time.sleep(0.02)
-    raise AssertionError(f"scan {scan_id} never reached {expected!r} (last saw {last_seen!r})")
+    raise AssertionError(
+        f"scan {scan_id} never reached {expected!r} (last saw {last_seen!r})"
+    )
 
 
 @pytest.fixture(autouse=True)
