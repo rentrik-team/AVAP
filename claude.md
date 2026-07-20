@@ -70,10 +70,13 @@ Do not add, even if it seems natural:
 
 
 Authentication, RBAC, multi-user, multi-tenancy
-Docker / Docker Compose / CI-CD
+CI-CD pipelines, distributed/orchestrated deployment
 Message queues, scheduling, distributed scanners
 Configurable sort order
 New libraries or state-management patterns without asking
+
+(Single-host Docker Compose was delivered on owner request 2026-07-20 — see
+deployment.md; the broader deferrals above still stand.)
 
 
 These are deliberate deferrals documented in project.md, not gaps. Current architecture must not prevent them later, but must not implement them now.

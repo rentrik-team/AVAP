@@ -1,0 +1,25 @@
+# Never bake local secrets or state into the image.
+.env
+.env.*
+!.env.example
+
+# Local runtime state
+logs/
+scan_output/
+generated_reports/
+test.db
+
+# Python cruft
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Not needed at runtime
+tests/
+.pre-commit-config.yaml
+.editorconfig
+*.md

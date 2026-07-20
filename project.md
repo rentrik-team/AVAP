@@ -53,8 +53,6 @@ Included:
 
 Excluded (Future Phases):
 
-- Frontend
-- Dockerization
 - Authentication
 - RBAC
 - Multi-user support

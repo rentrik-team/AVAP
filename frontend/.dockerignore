@@ -1,0 +1,16 @@
+# Never bake local env files into the image — the API base URL is passed
+# explicitly as a build argument.
+.env
+.env.*
+!.env.example
+
+node_modules/
+.next/
+out/
+coverage/
+
+# Not needed for the production build
+__tests__/
+**/__tests__/
+*.md
+.eslintcache

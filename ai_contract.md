@@ -87,16 +87,20 @@ ongoing work refines and hardens the existing stack.
 
 The following are intentionally postponed:
 
-* Dockerization
 * Authentication
 * Authorization
 * RBAC
 * Multi-user support
 * Distributed deployment
+* CI/CD pipelines
 
 Backend APIs shall be validated using Postman.
 
-No Docker configuration shall be generated unless explicitly requested.
+**Dockerization was delivered on owner request (2026-07-20).** A single-host
+Docker Compose stack (PostgreSQL + backend + frontend) lives at the repo
+root; see `deployment.md`. This is a single-machine deployment aid only — it
+does not introduce distributed/orchestrated deployment, which remains
+postponed.
 
 ---
 
