@@ -6,6 +6,5 @@ Run.md
 .env
 .env*
 deployment.md
-docker-compose.yml
 docker-data/
 volumes/
