@@ -1,0 +1,142 @@
+# AVAP — Dokploy (Traefik) deployment.
+#
+# Use this file instead of docker-compose.yml when deploying through Dokploy;
+# set the Compose Path in the Dokploy UI to `docker-compose.dokploy.yml`.
+# docker-compose.yml remains the single-host/localhost file — see readme.md.
+#
+# Two things differ from the single-host file, and both are required:
+#
+#   1. Services that need a public URL join the external `dokploy-network`.
+#      Traefik's Docker provider only discovers containers on that network;
+#      a Compose stack on its own default network is invisible to it, which
+#      Traefik answers with a bare "404 page not found" and its self-signed
+#      TRAEFIK DEFAULT CERT.
+#   2. Routing is declared with explicit Traefik labels rather than through
+#      the Dokploy "Domains" tab, so the routers are versioned with the code
+#      and do not depend on Dokploy's label generation.
+#
+# Because of (2), do NOT also add these hostnames under the Dokploy Domains
+# tab — two routers matching the same Host() rule is ambiguous.
+#
+# Required environment variables (Dokploy UI -> Environment):
+#
+#   POSTGRES_PASSWORD   database password
+#   FRONTEND_DOMAIN     public hostname for the UI, e.g. avap.rentrik.in
+#   BACKEND_DOMAIN      public hostname for the API, e.g. api.avap.rentrik.in
+#   OPENROUTER_API_KEY  optional; blank disables AI remediation only
+#
+# Both hostnames must have DNS A records pointing at this host before the
+# first deploy, otherwise Let's Encrypt cannot complete the HTTP-01 challenge.
+#
+# The browser talks to the API directly, so BACKEND_DOMAIN is baked into the
+# frontend bundle at BUILD time: changing it requires a rebuild, not just a
+# restart. It must be https — an http API URL is blocked as mixed content on
+# an https page.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-avap}
+      POSTGRES_USER: ${POSTGRES_USER:-avap_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the Dokploy environment}
+    volumes:
+      - avap_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-avap_user} -d ${POSTGRES_DB:-avap}"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    # Internal network only — the database is never reachable from Traefik.
+    networks:
+      - internal
+    labels:
+      - "traefik.enable=false"
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DEBUG: "false"
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_DB: ${POSTGRES_DB:-avap}
+      POSTGRES_USER: ${POSTGRES_USER:-avap_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in the Dokploy environment}
+      # The UI is served over https, so the allowed origin is https too.
+      CORS_ALLOWED_ORIGINS: https://${FRONTEND_DOMAIN:?Set FRONTEND_DOMAIN in the Dokploy environment}
+      SCAN_TIMEOUT: ${SCAN_TIMEOUT:-300}
+      AI_PROVIDER: openrouter
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-meta-llama/llama-3.1-8b-instruct:free}
+      AI_REQUEST_TIMEOUT_SECONDS: ${AI_REQUEST_TIMEOUT_SECONDS:-30}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-1024}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - avap_scan_output:/data/scan_output
+      - avap_reports:/data/generated_reports
+      - avap_logs:/data/logs
+    # Reaches the database on `internal`; reached by Traefik on dokploy-network.
+    networks:
+      - internal
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      # The container has two networks — name the one Traefik must route to.
+      - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.avap-backend.rule=Host(`${BACKEND_DOMAIN:?Set BACKEND_DOMAIN in the Dokploy environment}`)"
+      - "traefik.http.routers.avap-backend.entrypoints=websecure"
+      - "traefik.http.routers.avap-backend.tls=true"
+      - "traefik.http.routers.avap-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.avap-backend.loadbalancer.server.port=8000"
+      - "traefik.http.routers.avap-backend-web.rule=Host(`${BACKEND_DOMAIN}`)"
+      - "traefik.http.routers.avap-backend-web.entrypoints=web"
+      - "traefik.http.routers.avap-backend-web.middlewares=avap-backend-https"
+      - "traefik.http.middlewares.avap-backend-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.avap-backend-https.redirectscheme.permanent=true"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the browser bundle at build time (NEXT_PUBLIC_*).
+        NEXT_PUBLIC_API_BASE_URL: https://${BACKEND_DOMAIN:?Set BACKEND_DOMAIN in the Dokploy environment}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.avap-frontend.rule=Host(`${FRONTEND_DOMAIN:?Set FRONTEND_DOMAIN in the Dokploy environment}`)"
+      - "traefik.http.routers.avap-frontend.entrypoints=websecure"
+      - "traefik.http.routers.avap-frontend.tls=true"
+      - "traefik.http.routers.avap-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.avap-frontend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.avap-frontend-web.rule=Host(`${FRONTEND_DOMAIN}`)"
+      - "traefik.http.routers.avap-frontend-web.entrypoints=web"
+      - "traefik.http.routers.avap-frontend-web.middlewares=avap-frontend-https"
+      - "traefik.http.middlewares.avap-frontend-https.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.avap-frontend-https.redirectscheme.permanent=true"
+
+networks:
+  # Private stack network: database + backend only.
+  internal:
+    driver: bridge
+  # Created by Dokploy on install; shared with the Traefik container.
+  dokploy-network:
+    external: true
+
+volumes:
+  avap_pgdata:
+  avap_scan_output:
+  avap_reports:
+  avap_logs:
