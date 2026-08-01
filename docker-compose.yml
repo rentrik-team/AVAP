@@ -1,13 +1,24 @@
-# AVAP — full stack: PostgreSQL + FastAPI backend (with Nmap) + Next.js UI.
+# AVAP — PostgreSQL + FastAPI backend (with Nmap) + Next.js UI.
 #
-# Configuration comes from a root-level `.env` file (copy env.docker.example
-# to `.env` and edit). See deployment.md for the complete guide.
+# One compose file, used everywhere. Routing is declared here with Traefik
+# labels rather than in the Dokploy UI: the UI only injects labels into
+# services that already have a `labels:` block, which is why the frontend
+# was never given a router and fell through to Traefik's catch-all
+# ("404 page not found" under TRAEFIK DEFAULT CERT).
 #
-# The frontend and backend only communicate over REST — the browser calls
-# the backend directly at FRONTEND_API_BASE_URL, which is why that value is
-# a *build* argument (NEXT_PUBLIC_* is baked into the browser bundle).
-
-name: avap
+# Set in the Dokploy Environment tab (or a local .env file):
+#
+#   POSTGRES_PASSWORD   database password
+#   FRONTEND_DOMAIN     UI hostname   e.g. avap.rentrik.in
+#   BACKEND_DOMAIN      API hostname  e.g. api-avap.rentrik.in
+#   OPENROUTER_API_KEY  optional; blank disables AI remediation only
+#
+# Hostnames only — no scheme, no trailing slash. BACKEND_DOMAIN is compiled
+# into the browser bundle at BUILD time, so changing it needs a Redeploy,
+# not a Restart.
+#
+# Running it outside Dokploy: `docker network create dokploy-network` once,
+# then `docker compose up -d --build`.
 
 services:
   db:
@@ -16,7 +27,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-avap}
       POSTGRES_USER: ${POSTGRES_USER:-avap_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
     volumes:
       - avap_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -24,10 +35,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 12
-    # Not published to the host by default — the backend reaches it on the
-    # internal network. Uncomment to inspect the DB from the host:
-    # ports:
-    #   - "5432:5432"
+    # Default network only — never reachable from Traefik or the internet.
 
   backend:
     build:
@@ -43,8 +51,9 @@ services:
       POSTGRES_PORT: "5432"
       POSTGRES_DB: ${POSTGRES_DB:-avap}
       POSTGRES_USER: ${POSTGRES_USER:-avap_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      # The UI is served over https, so the allowed origin is https too.
+      CORS_ALLOWED_ORIGINS: https://${FRONTEND_DOMAIN:?Set FRONTEND_DOMAIN}
       SCAN_TIMEOUT: ${SCAN_TIMEOUT:-300}
       AI_PROVIDER: openrouter
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
@@ -52,28 +61,56 @@ services:
       AI_REQUEST_TIMEOUT_SECONDS: ${AI_REQUEST_TIMEOUT_SECONDS:-30}
       AI_MAX_TOKENS: ${AI_MAX_TOKENS:-1024}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      # Data directories are fixed inside the image (/data/...) — see
-      # backend/Dockerfile. They persist via the named volumes below.
     volumes:
       - avap_scan_output:/data/scan_output
       - avap_reports:/data/generated_reports
       - avap_logs:/data/logs
-    ports:
-      - "${BACKEND_PORT:-8000}:8000"
+    # `default` reaches the database; `dokploy-network` is where Traefik looks.
+    networks:
+      - default
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      # Multi-homed container — tell Traefik which IP to route to.
+      - "traefik.docker.network=dokploy-network"
+      - "traefik.http.routers.avap-backend.rule=Host(`${BACKEND_DOMAIN:?Set BACKEND_DOMAIN}`)"
+      - "traefik.http.routers.avap-backend.entrypoints=websecure"
+      - "traefik.http.routers.avap-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.avap-backend.loadbalancer.server.port=8000"
+      - "traefik.http.routers.avap-backend-http.rule=Host(`${BACKEND_DOMAIN}`)"
+      - "traefik.http.routers.avap-backend-http.entrypoints=web"
+      - "traefik.http.routers.avap-backend-http.middlewares=avap-https"
 
   frontend:
     build:
       context: ./frontend
       args:
-        # URL the BROWSER uses to reach the backend — usually the host
-        # machine's address + the published backend port, NOT "backend:8000".
-        NEXT_PUBLIC_API_BASE_URL: ${FRONTEND_API_BASE_URL:-http://localhost:8000}
+        # Baked into the browser bundle at build time (NEXT_PUBLIC_*). The
+        # browser calls the API directly, so this must be the public https
+        # URL — an http URL is blocked as mixed content on an https page.
+        NEXT_PUBLIC_API_BASE_URL: https://${BACKEND_DOMAIN:?Set BACKEND_DOMAIN}
     restart: unless-stopped
     depends_on:
       backend:
         condition: service_healthy
-    ports:
-      - "${FRONTEND_PORT:-3000}:3000"
+    networks:
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.avap-frontend.rule=Host(`${FRONTEND_DOMAIN:?Set FRONTEND_DOMAIN}`)"
+      - "traefik.http.routers.avap-frontend.entrypoints=websecure"
+      - "traefik.http.routers.avap-frontend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.avap-frontend.loadbalancer.server.port=3000"
+      - "traefik.http.routers.avap-frontend-http.rule=Host(`${FRONTEND_DOMAIN}`)"
+      - "traefik.http.routers.avap-frontend-http.entrypoints=web"
+      - "traefik.http.routers.avap-frontend-http.middlewares=avap-https"
+      # Defined once here; referenced by both services above.
+      - "traefik.http.middlewares.avap-https.redirectscheme.scheme=https"
+
+networks:
+  # Created by Dokploy on install; shared with the Traefik container.
+  dokploy-network:
+    external: true
 
 volumes:
   avap_pgdata:
